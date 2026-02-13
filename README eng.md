@@ -1,3 +1,7 @@
+# Language
+中文:
+[此处](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README.md)
+
 # Screen Time Controller
 
 The Windows 11 Screen Time Controller application helps you manage and control screen usage time.
