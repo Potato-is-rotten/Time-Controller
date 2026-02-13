@@ -22,26 +22,8 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 - .NET 10.0 或更高版本
 
 ### 安装步骤
-1. 克隆或下载项目代码
-2. 打开 Visual Studio 2022 或更高版本
-3. 打开项目文件 `ScreenTimeController.csproj`
-4. 构建项目（Build > Build Solution）
-5. 运行应用程序（Debug > Start Without Debugging）
-
-### 直接运行
-1. 导航到 `bin/Debug/net10.0-windows` 目录
-2. 双击 `ScreenTimeController.exe` 文件运行应用程序
-
-### 作为 Windows 服务运行
-1. 构建项目后，打开命令提示符（以管理员身份运行）
-2. 导航到 `bin/Debug/net10.0-windows` 目录
-3. 运行以下命令安装服务：
-   ```
-   sc create ScreenTimeController binPath= "%CD%\ScreenTimeController.exe --service"
-   sc start ScreenTimeController
-   sc config ScreenTimeController start= auto
-   ```
-4. 服务将在系统启动时自动运行
+1. 下载项目
+2. 点击程序'ScreenTimeController.exe'运行
 
 ## 使用方法
 
