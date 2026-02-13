@@ -1,6 +1,6 @@
 # 语言
 English:
-https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md
+[Here](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md)
 
 # Screen Time Controller
 
