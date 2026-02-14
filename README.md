@@ -105,11 +105,6 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 3. 删除 `%AppData%\ScreenTimeController\app_usage.txt` 文件
 4. 重新启动应用程序
 
-### 应用图标不显示
-1. 确保 `Resources\AppIcon.ico` 文件存在
-2. 检查图标文件是否损坏
-3. 应用程序会自动使用系统默认图标作为后备
-
 ## 许可证
 
 Apache-2.0 License
