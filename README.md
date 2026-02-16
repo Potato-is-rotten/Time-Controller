@@ -2,6 +2,10 @@
 English:
 [Here](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md)
 
+# 紧急通知！！！
+我们测试下来发现火绒会报TrojanSpy，经过VirusTotal的检查，只有火绒会报病毒。
+<img width="1418" height="982" alt="Screenshot_2026-02-16_15-37-05" src="https://github.com/user-attachments/assets/06c71b5e-54d0-47b8-826e-c2abf7736ede" />
+
 # Screen Time Controller
 
 Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使用时间。
@@ -115,4 +119,5 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 ## 许可证
 
 Apache-2.0 Lincense
+
 
