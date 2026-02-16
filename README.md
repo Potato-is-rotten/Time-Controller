@@ -1,7 +1,3 @@
-# 语言
-English:
-[Here](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md)
-
 # Screen Time Controller
 
 Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使用时间。
@@ -28,8 +24,19 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 ## 安装与运行
 
 ### 直接运行
-1. 打开 `ScreenTimeController-win-x64` 文件夹
+1. 将 `publish` 文件夹复制到目标位置
 2. 双击 `ScreenTimeController.exe` 运行应用程序
+3. 确保 `Resources\AppIcon.ico` 文件存在
+
+### 从源码构建
+1. 克隆或下载项目代码
+2. 安装 .NET 5.0 SDK 或更高版本
+3. 打开终端，导航到项目目录
+4. 运行构建命令：
+   ```powershell
+   dotnet publish --configuration Release --output ./publish
+   ```
+5. 在 `publish` 文件夹中找到生成的可执行文件
 
 ## 使用方法
 
@@ -105,6 +112,37 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 3. 删除 `%AppData%\ScreenTimeController\app_usage.txt` 文件
 4. 重新启动应用程序
 
+### 应用图标不显示
+1. 确保 `Resources\AppIcon.ico` 文件存在
+2. 检查图标文件是否损坏
+3. 应用程序会自动使用系统默认图标作为后备
+
 ## 许可证
 
-Apache-2.0 License
+此项目为个人学习和使用而创建，仅供参考。
+
+## 更新日志
+
+### v1.2.0
+- 使用TabControl分离Overview和Applications界面
+- 添加应用程序图标显示功能
+- 实现图标缓存机制，应用关闭后图标仍可显示
+- 只计时有窗口的应用程序
+- 添加单实例检测，防止多开
+- 自包含发布，无需安装.NET运行时
+- 修复多个潜在bug和资源泄漏问题
+- 优化UI布局和字体大小
+- 改进线程安全性
+
+### v1.1.0
+- 添加应用级别时间记录功能
+- 更改设置后今日使用时间不重置
+- 优化系统托盘通知
+- 添加密码保护功能
+
+### v1.0.0
+- 初始版本
+- 实现基本的屏幕时间管控功能
+- 添加系统托盘集成
+- 支持每天不同的时间限制设置
+- 添加5分钟警告通知
