@@ -12,24 +12,26 @@ The Windows 11 Screen Time Controller app helps you manage and control screen us
 - **App-Level Usage Tracking**: Distinguish usage time by application, recording detailed usage time for each windowed app
 - **App Icon Display**: Shows application icons for an intuitive overview of usage
 - **Tabbed Interface**: Overview tab displays summary stats; Applications tab shows app-specific details
-- **Time Limit Alerts**: Receive warning notifications 5 minutes before reaching your time limit
-- **Screen Lock**: Automatically locks your screen upon reaching your time limit
-- **Password Protection**: Set a password to prevent unauthorized changes to settings
-- **System Tray Integration**: Minimizes to the system tray without interrupting normal work
+- **Time Limit Alerts**: Receive warning notifications 5 minutes before reaching time limits
+- **Screen Lock**: Automatically locks the screen upon reaching time limits
+- **Password Protection**: Set a password to prevent unauthorized setting changes
+- **System Tray Integration**: Minimizes to the system tray without disrupting normal work
 - **Real-Time Usage Tracking**: Displays elapsed and remaining time in real time
 - **Single Instance Operation**: Prevents multiple instances from running simultaneously
-- **Self-Contained Release**: Runs directly without requiring .NET runtime installation
+- **Grace Period**: Allows password entry after time expires
+- **Full-Screen Restriction**: Requires password input to enable full-screen mode after time expires
 
 ## System Requirements
 
-- Windows 10/11 (x64)
-- No .NET runtime installation required (self-contained release)
+- Windows 10 1607 or later
+- Windows Server 2012 R2 SP1 or later
+- Supports .NET Framework 5.0–10.0
 
-## Installation and Execution
+## Installation and Operation
 
 ### Direct Execution
-1. Open the `ScreenTimeController-win-x64` folder
-2. Double-click `ScreenTimeController.exe` to run the application
+1. Copy the `ScreenTimeController` folder to the target location
+2. Double-click `ScreenTimeController.exe` to launch the application
 
 ## Usage Guide
 
@@ -38,7 +40,7 @@ The Windows 11 Screen Time Controller app helps you manage and control screen us
 2. Double-click the system tray icon to open the main window
 3. Click the “Settings” button to open the settings window
 4. Set daily screen time limits
-5. Set password protection (optional)
+5. Configure password protection (optional)
 6. Click “OK” to save settings
 
 ### Daily Usage
@@ -50,7 +52,7 @@ The Windows 11 Screen Time Controller app helps you manage and control screen us
 - **Exit the app**: Right-click the system tray icon and select “Exit”
 
 ### Time Limit Settings
-- Different time limits can be set for each day
+- Set different time limits for each day
 - Use the “Apply to All Days” button to apply current settings to all days
 - Time limits are set in hours and minutes
 - Supports setting, modifying, or removing password protection
@@ -58,19 +60,19 @@ The Windows 11 Screen Time Controller app helps you manage and control screen us
 ## Technical Implementation
 
 ### Core Components
-- **MainForm**: Primary application window, using TabControl to separate Overview and Application List
-- **SettingsForm**: Settings window for configuring daily time limits and passwords
+- **MainForm**: Main application window, using TabControl to separate Overview and Application List
+- **SettingsForm**: Configuration window for daily time limits and passwords
 - **PasswordForm**: Password input window for user authentication
 - **ChangePasswordForm**: Password modification window
-- **TimeTracker**: Time tracker recording screen usage time and application-level usage time
-- **SettingsManager**: Settings manager for saving and loading application settings
+- **TimeTracker**: Time tracker recording screen usage and app-level usage
+- **SettingsManager**: Settings manager for saving and loading application configurations
 - **WindowHelper**: Windows API wrapper for retrieving window information and locking the screen
 
 ### Data Storage
 - Settings are saved in the `%AppData%\ScreenTimeController\settings.txt` file
 - Total time usage records are saved in the `%AppData%\ScreenTimeController\usage.txt` file
 - Application-level time usage records are saved in the `%AppData%\ScreenTimeController\app_usage.txt` file
-- Passwords stored using SHA256 encryption
+- Passwords are stored using SHA256 encryption
 
 ### Key Technologies
 - Windows Forms application development
@@ -104,6 +106,11 @@ The Windows 11 Screen Time Controller app helps you manage and control screen us
 2. Delete the `%AppData%\ScreenTimeController\usage.txt` file
 3. Delete the `%AppData%\ScreenTimeController\app_usage.txt` file
 4. Restart the application
+
+### Application Icon Not Displaying
+1. Ensure the `Resources\AppIcon.ico` file exists
+2. Check if the icon file is corrupted
+3. The application will automatically use the system default icon as a fallback
 
 ## License
 
