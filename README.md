@@ -4,7 +4,8 @@ English:
 
 # 紧急通知！！！
 我们测试下来发现火绒会报TrojanSpy，经过VirusTotal的检查，只有火绒会报病毒。
-<img width="1418" height="982" alt="Screenshot_2026-02-16_15-37-05" src="https://github.com/user-attachments/assets/06c71b5e-54d0-47b8-826e-c2abf7736ede" />
+<img width="1418" height="2506" alt="Screenshot_2026-02-16_15-39-05" src="https://github.com/user-attachments/assets/0cf2e6ec-df63-4629-932b-4d2b0941f89c" />
+大部分时间控制软件如果不买证书都会有误报。
 
 # Screen Time Controller
 
@@ -119,5 +120,6 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 ## 许可证
 
 Apache-2.0 Lincense
+
 
 
