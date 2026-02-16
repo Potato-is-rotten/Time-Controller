@@ -1,3 +1,7 @@
+# Language
+English:
+[Here](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md)
+
 # Screen Time Controller
 
 Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使用时间。
@@ -111,3 +115,4 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 ## 许可证
 
 Apache-2.0 Lincense
+
