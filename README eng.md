@@ -2,6 +2,11 @@
 中文:
 [此处](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README.md)
 
+# Urgent Notice!!!
+Our testing has revealed that Huorong antivirus flags TrojanSpy as a threat. VirusTotal scans confirm that only Huorong reports this as a virus.
+<img width="1418" height="2506" alt="Screenshot_2026-02-16_15-39-05" src="https://github.com/user-attachments/assets/26c11a73-9a0d-40f9-9615-6f49da5aab89" />
+Most time-control software will trigger false positives unless you purchase a certificate.
+
 # Screen Time Controller
 
 The Windows 11 Screen Time Controller app helps you manage and control screen usage time.
