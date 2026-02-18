@@ -2,11 +2,6 @@
 English:
 [Here](https://github.com/Potato-is-rotten/Time-Controller/blob/main/README%20eng.md)
 
-# 紧急通知！！！
-我们测试下来发现火绒会报TrojanSpy，经过VirusTotal的检查，只有火绒会报病毒。
-<img width="1418" height="2506" alt="Screenshot_2026-02-16_15-39-05" src="https://github.com/user-attachments/assets/0cf2e6ec-df63-4629-932b-4d2b0941f89c" />
-大部分时间控制软件如果不买证书都会有误报。
-
 # Screen Time Controller
 
 Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使用时间。
@@ -23,20 +18,31 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 - **系统托盘集成**：最小化到系统托盘，不干扰正常工作
 - **实时时间跟踪**：实时显示已使用时间和剩余时间
 - **单实例运行**：防止多个实例同时运行
-- **宽限时间**：到时间后输入密码宽限时间
-- **全屏限制**：到达时间后开启需输入密码
+- **进程守护**：Watchdog守护进程，防止程序被强制关闭
 
 ## 系统要求
 
 - Windows 10 1607 及以上
-- Windows server 2012 R2 SP1 及以上
-- 支持.NET运行时5.0~10.0
+- Windows Server 2012 R2 SP1 及以上
+- 支持.NET运行时 5.0~10.0
 
 ## 安装与运行
 
 ### 直接运行
 1. 将 `ScreenTimeController` 文件夹复制到目标位置
 2. 双击 `ScreenTimeController.exe` 运行应用程序
+3. 确保 `Resources\AppIcon.ico` 文件存在
+4. 确保 `ScreenTimeControllerWatchdog.exe` 及其依赖文件存在
+
+### 从源码构建
+1. 克隆或下载项目代码
+2. 安装 .NET 5.0 SDK 或更高版本
+3. 打开终端，导航到项目目录
+4. 运行构建命令：
+   ```powershell
+   dotnet build --configuration Release
+   ```
+5. 在 `bin\Release\net5.0-windows\` 文件夹中找到生成的可执行文件
 
 ## 使用方法
 
@@ -62,6 +68,28 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 - 时间限制以小时和分钟为单位
 - 支持设置、修改或删除密码保护
 
+## 进程守护 (Watchdog)
+
+Screen Time Controller 包含一个 Watchdog 守护进程，用于保护主程序不被强制关闭：
+
+### 功能特点
+- **自动重启**：当主程序被任务管理器关闭时，Watchdog会自动重启主程序
+- **相互监控**：主程序也会监控Watchdog进程，确保两者都在运行
+- **单实例限制**：Watchdog只能运行一个实例
+- **快速响应**：500ms检测间隔，快速响应进程终止
+
+### 文件说明
+- `ScreenTimeController.exe` - 主程序
+- `ScreenTimeControllerWatchdog.exe` - Watchdog守护进程
+- `ScreenTimeController.dll` - 主程序依赖
+- `ScreenTimeControllerWatchdog.dll` - Watchdog依赖
+- `*.runtimeconfig.json` - 运行时配置文件
+- `*.deps.json` - 依赖配置文件
+
+### 日志文件
+- `%AppData%\ScreenTimeController\watchdog_monitor.log` - 主程序监控日志
+- `%AppData%\ScreenTimeController\watchdog_external.log` - Watchdog日志
+
 ## 技术实现
 
 ### 核心组件
@@ -72,6 +100,7 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 - **TimeTracker**：时间跟踪器，记录屏幕使用时间和应用级别使用时间
 - **SettingsManager**：设置管理器，保存和加载应用程序设置
 - **WindowHelper**：Windows API 包装器，用于获取窗口信息和锁定屏幕
+- **Watchdog**：守护进程管理器，启动和监控Watchdog进程
 
 ### 数据存储
 - 设置保存在 `%AppData%\ScreenTimeController\settings.txt` 文件中
@@ -85,7 +114,7 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 - 时间跟踪和管理
 - 系统托盘集成 (NotifyIcon)
 - 单实例检测 (Mutex)
-- 自包含发布 (Self-contained deployment)
+- 进程守护与相互监控
 - 图标缓存机制
 - 线程安全设计
 
@@ -94,7 +123,8 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 ### 应用程序无法启动
 1. 确保应用程序文件完整
 2. 检查应用程序权限
-3. 查看 Windows 事件查看器中的错误信息
+3. 确保已安装 .NET 5.0 或更高版本运行时
+4. 查看 Windows 事件查看器中的错误信息
 
 ### 时间限制不生效
 1. 检查设置是否正确保存
@@ -117,9 +147,34 @@ Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使
 2. 检查图标文件是否损坏
 3. 应用程序会自动使用系统默认图标作为后备
 
+### Watchdog不工作
+1. 确保 `ScreenTimeControllerWatchdog.exe` 及其依赖文件存在
+2. 检查日志文件 `%AppData%\ScreenTimeController\watchdog_external.log`
+3. 确保没有多个Watchdog实例在运行
+
 ## 许可证
 
-Apache-2.0 Lincense
+Apache-2.0 License
 
+## 更新日志
 
+### v1.2.0
+- 添加Watchdog进程守护功能
+- 实现主程序与Watchdog相互监控
+- 添加Watchdog单实例限制
+- 修复多个线程安全问题
+- 优化进程检测间隔（500ms）
+- 移除自包含发布，减小体积
 
+### v1.1.0
+- 添加应用级别时间记录功能
+- 更改设置后今日使用时间不重置
+- 优化系统托盘通知
+- 添加密码保护功能
+
+### v1.0.0
+- 初始版本
+- 实现基本的屏幕时间管控功能
+- 添加系统托盘集成
+- 支持每天不同的时间限制设置
+- 添加5分钟警告通知
