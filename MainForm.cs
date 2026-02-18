@@ -48,6 +48,8 @@ namespace ScreenTimeController
             _iconCache = new Dictionary<string, Icon>();
             _appFilePathCache = new Dictionary<string, string>();
 
+            Watchdog.Start(Application.ExecutablePath, _settingsManager);
+
             SetupNotifyIcon();
             SetupTimers();
             SetupIconList();
@@ -164,7 +166,7 @@ namespace ScreenTimeController
 
             _lockCheckTimer = new System.Windows.Forms.Timer
             {
-                Interval = 10000
+                Interval = 1000
             };
             _lockCheckTimer.Tick += OnLockCheckTick;
             _lockCheckTimer.Start();
@@ -527,7 +529,19 @@ namespace ScreenTimeController
 
         private void OnExitClick(object sender, EventArgs e)
         {
+            if (_settingsManager.HasPassword())
+            {
+                using (var passwordForm = new PasswordForm(_settingsManager))
+                {
+                    var result = passwordForm.ShowDialog();
+                    if (result != DialogResult.OK || !passwordForm.IsPasswordCorrect)
+                    {
+                        return;
+                    }
+                }
+            }
             _isDisposed = true;
+            Watchdog.Stop();
             _notifyIcon.Visible = false;
             Application.Exit();
         }
@@ -644,8 +658,9 @@ namespace ScreenTimeController
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1000, 800);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96f, 96f);
+            this.ClientSize = new System.Drawing.Size(900, 700);
             this.Text = "Screen Time Controller";
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(240, 240, 240);
@@ -668,54 +683,74 @@ namespace ScreenTimeController
                 Padding = new Padding(20)
             };
 
+            var overviewPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 5,
+                Padding = new Padding(20)
+            };
+            overviewPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            overviewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
+            overviewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
+            overviewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 80F));
+            overviewPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 70F));
+            overviewPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
             _labelDailyLimit = new Label
             {
-                Font = new Font("Segoe UI", 22, FontStyle.Bold),
-                Location = new Point(20, 30),
-                Size = new Size(920, 60),
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 20, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            _tabOverview.Controls.Add(_labelDailyLimit);
+            overviewPanel.Controls.Add(_labelDailyLimit, 0, 0);
 
             _labelUsedToday = new Label
             {
-                Font = new Font("Segoe UI", 22, FontStyle.Bold),
-                Location = new Point(20, 110),
-                Size = new Size(920, 60),
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 20, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            _tabOverview.Controls.Add(_labelUsedToday);
+            overviewPanel.Controls.Add(_labelUsedToday, 0, 1);
 
             _labelRemaining = new Label
             {
-                Font = new Font("Segoe UI", 26, FontStyle.Bold),
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 24, FontStyle.Bold),
                 ForeColor = Color.FromArgb(0, 122, 204),
-                Location = new Point(20, 190),
-                Size = new Size(920, 70),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            _tabOverview.Controls.Add(_labelRemaining);
+            overviewPanel.Controls.Add(_labelRemaining, 0, 2);
 
             _progressBarUsage = new ProgressBar
             {
-                Location = new Point(20, 280),
-                Size = new Size(920, 60),
+                Dock = DockStyle.Fill,
+                Height = 50,
                 Style = ProgressBarStyle.Continuous
             };
-            _tabOverview.Controls.Add(_progressBarUsage);
+            overviewPanel.Controls.Add(_progressBarUsage, 0, 3);
+
+            var buttonPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
 
             _buttonSettings = new Button
             {
                 Font = new Font("Segoe UI", 14),
-                Location = new Point(430, 680),
                 Size = new Size(140, 50),
                 BackColor = Color.FromArgb(0, 122, 204),
                 ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
+                FlatStyle = FlatStyle.Flat,
+                Anchor = AnchorStyles.None
             };
             _buttonSettings.FlatAppearance.BorderSize = 0;
             _buttonSettings.Click += OnSettingsClick;
-            _tabOverview.Controls.Add(_buttonSettings);
+            buttonPanel.Controls.Add(_buttonSettings);
+
+            overviewPanel.Controls.Add(buttonPanel, 0, 4);
+
+            _tabOverview.Controls.Add(overviewPanel);
 
             _tabControl.TabPages.Add(_tabOverview);
 
@@ -725,30 +760,58 @@ namespace ScreenTimeController
                 Padding = new Padding(20)
             };
 
+            var appsPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(10)
+            };
+            appsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            appsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+            appsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
             _labelAppUsage = new Label
             {
+                Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(20, 20),
-                Size = new Size(920, 50)
+                TextAlign = ContentAlignment.MiddleLeft
             };
-            _tabApps.Controls.Add(_labelAppUsage);
+            appsPanel.Controls.Add(_labelAppUsage, 0, 0);
 
             _listBoxAppUsage = new ListView
             {
-                Location = new Point(20, 80),
-                Size = new Size(920, 650),
+                Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 12),
                 View = View.Details,
                 FullRowSelect = true,
                 HeaderStyle = ColumnHeaderStyle.None
             };
-            _listBoxAppUsage.Columns.Add("Application", 600);
-            _listBoxAppUsage.Columns.Add("Time", 300);
-            _tabApps.Controls.Add(_listBoxAppUsage);
+            _listBoxAppUsage.Columns.Add("Application", -1);
+            _listBoxAppUsage.Columns.Add("Time", -2);
+            appsPanel.Controls.Add(_listBoxAppUsage, 0, 1);
+
+            _tabApps.Controls.Add(appsPanel);
 
             _tabControl.TabPages.Add(_tabApps);
 
             this.Controls.Add(_tabControl);
+
+            this.Load += (s, e) =>
+            {
+                _buttonSettings.Location = new Point(
+                    (buttonPanel.Width - _buttonSettings.Width) / 2,
+                    (buttonPanel.Height - _buttonSettings.Height) / 2
+                );
+            };
+
+            buttonPanel.Resize += (s, e) =>
+            {
+                _buttonSettings.Location = new Point(
+                    (buttonPanel.Width - _buttonSettings.Width) / 2,
+                    (buttonPanel.Height - _buttonSettings.Height) / 2
+                );
+            };
         }
 
         private System.ComponentModel.IContainer components;
