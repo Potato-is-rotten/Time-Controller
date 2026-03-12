@@ -1,271 +1,321 @@
 using System;
-using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace ScreenTimeController
+namespace ScreenTimeController;
+
+public class SettingsManager
 {
-    public class SettingsManager
+    private readonly string _settingsFilePath;
+    private readonly string _backupFilePath;
+    private readonly object _lockObject = new();
+
+    private int _sundayLimitMinutes = 120;
+    private int _mondayLimitMinutes = 120;
+    private int _tuesdayLimitMinutes = 120;
+    private int _wednesdayLimitMinutes = 120;
+    private int _thursdayLimitMinutes = 120;
+    private int _fridayLimitMinutes = 120;
+    private int _saturdayLimitMinutes = 120;
+    private string _passwordHash = "";
+    private Language _language = Language.English;
+
+    public TimeSpan SundayLimit
     {
-        private readonly string _settingsFilePath;
-        private int _sundayLimitMinutes;
-        private int _mondayLimitMinutes;
-        private int _tuesdayLimitMinutes;
-        private int _wednesdayLimitMinutes;
-        private int _thursdayLimitMinutes;
-        private int _fridayLimitMinutes;
-        private int _saturdayLimitMinutes;
-        private string _passwordHash;
-        private Language _language;
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_sundayLimitMinutes); } }
+        set { lock (_lockObject) { _sundayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
 
-        public TimeSpan SundayLimit
+    public TimeSpan MondayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_mondayLimitMinutes); } }
+        set { lock (_lockObject) { _mondayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan TuesdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_tuesdayLimitMinutes); } }
+        set { lock (_lockObject) { _tuesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan WednesdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_wednesdayLimitMinutes); } }
+        set { lock (_lockObject) { _wednesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan ThursdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_thursdayLimitMinutes); } }
+        set { lock (_lockObject) { _thursdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan FridayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_fridayLimitMinutes); } }
+        set { lock (_lockObject) { _fridayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan SaturdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_saturdayLimitMinutes); } }
+        set { lock (_lockObject) { _saturdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public Language Language
+    {
+        get { lock (_lockObject) { return _language; } }
+        set
         {
-            get => TimeSpan.FromMinutes(_sundayLimitMinutes);
-            set => _sundayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
+            lock (_lockObject) { _language = value; }
+            LanguageManager.CurrentLanguage = value;
         }
+    }
 
-        public TimeSpan MondayLimit
+    public TimeSpan GetDailyLimit()
+    {
+        return DateTime.Today.DayOfWeek switch
         {
-            get => TimeSpan.FromMinutes(_mondayLimitMinutes);
-            set => _mondayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
+            DayOfWeek.Sunday => SundayLimit,
+            DayOfWeek.Monday => MondayLimit,
+            DayOfWeek.Tuesday => TuesdayLimit,
+            DayOfWeek.Wednesday => WednesdayLimit,
+            DayOfWeek.Thursday => ThursdayLimit,
+            DayOfWeek.Friday => FridayLimit,
+            DayOfWeek.Saturday => SaturdayLimit,
+            _ => MondayLimit,
+        };
+    }
 
-        public TimeSpan TuesdayLimit
-        {
-            get => TimeSpan.FromMinutes(_tuesdayLimitMinutes);
-            set => _tuesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
+    public SettingsManager()
+    {
+        _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "settings.txt");
+        _backupFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "settings_backup.txt");
+        EnsureDirectory();
+        LoadSettings();
+    }
 
-        public TimeSpan WednesdayLimit
+    private void EnsureDirectory()
+    {
+        try
         {
-            get => TimeSpan.FromMinutes(_wednesdayLimitMinutes);
-            set => _wednesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
-
-        public TimeSpan ThursdayLimit
-        {
-            get => TimeSpan.FromMinutes(_thursdayLimitMinutes);
-            set => _thursdayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
-
-        public TimeSpan FridayLimit
-        {
-            get => TimeSpan.FromMinutes(_fridayLimitMinutes);
-            set => _fridayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
-
-        public TimeSpan SaturdayLimit
-        {
-            get => TimeSpan.FromMinutes(_saturdayLimitMinutes);
-            set => _saturdayLimitMinutes = Math.Min((int)value.TotalMinutes, 24 * 60);
-        }
-
-        public Language Language
-        {
-            get => _language;
-            set
+            string? dir = Path.GetDirectoryName(_settingsFilePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
-                _language = value;
-                LanguageManager.CurrentLanguage = value;
+                Directory.CreateDirectory(dir);
             }
         }
+        catch { }
+    }
 
-        public TimeSpan GetDailyLimit()
+    private string? SafeReadFile(string filePath)
+    {
+        for (int i = 0; i < 5; i++)
         {
-            var dayOfWeek = DateTime.Today.DayOfWeek;
-            return dayOfWeek switch
-            {
-                DayOfWeek.Sunday => SundayLimit,
-                DayOfWeek.Monday => MondayLimit,
-                DayOfWeek.Tuesday => TuesdayLimit,
-                DayOfWeek.Wednesday => WednesdayLimit,
-                DayOfWeek.Thursday => ThursdayLimit,
-                DayOfWeek.Friday => FridayLimit,
-                DayOfWeek.Saturday => SaturdayLimit,
-                _ => MondayLimit
-            };
-        }
-
-        public SettingsManager()
-        {
-            _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "settings.txt");
-            InitializeFile();
-            LoadSettings();
-        }
-
-        private void InitializeFile()
-        {
-            var directory = Path.GetDirectoryName(_settingsFilePath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            if (!File.Exists(_settingsFilePath))
-            {
-                _sundayLimitMinutes = 120;
-                _mondayLimitMinutes = 120;
-                _tuesdayLimitMinutes = 120;
-                _wednesdayLimitMinutes = 120;
-                _thursdayLimitMinutes = 120;
-                _fridayLimitMinutes = 120;
-                _saturdayLimitMinutes = 120;
-                _passwordHash = "";
-                _language = Language.English;
-                SaveSettings();
-            }
-        }
-
-        private void LoadSettings()
-        {
-            _sundayLimitMinutes = 120;
-            _mondayLimitMinutes = 120;
-            _tuesdayLimitMinutes = 120;
-            _wednesdayLimitMinutes = 120;
-            _thursdayLimitMinutes = 120;
-            _fridayLimitMinutes = 120;
-            _saturdayLimitMinutes = 120;
-            _language = Language.English;
-            
-            bool fileExists = File.Exists(_settingsFilePath);
-            bool passwordLoaded = false;
-
             try
             {
-                if (fileExists)
+                if (!File.Exists(filePath))
                 {
-                    var content = File.ReadAllText(_settingsFilePath);
-                    var lines = content.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                    
-                    foreach (var line in lines)
-                    {
-                        var parts = line.Split(new[] { '=' }, 2);
-                        if (parts.Length == 2)
-                        {
-                            try
-                            {
-                                switch (parts[0].Trim())
-                                {
-                                    case "SundayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int sundayLimit))
-                                            _sundayLimitMinutes = sundayLimit;
-                                        break;
-                                    case "MondayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int mondayLimit))
-                                            _mondayLimitMinutes = mondayLimit;
-                                        break;
-                                    case "TuesdayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int tuesdayLimit))
-                                            _tuesdayLimitMinutes = tuesdayLimit;
-                                        break;
-                                    case "WednesdayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int wednesdayLimit))
-                                            _wednesdayLimitMinutes = wednesdayLimit;
-                                        break;
-                                    case "ThursdayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int thursdayLimit))
-                                            _thursdayLimitMinutes = thursdayLimit;
-                                        break;
-                                    case "FridayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int fridayLimit))
-                                            _fridayLimitMinutes = fridayLimit;
-                                        break;
-                                    case "SaturdayLimit":
-                                        if (int.TryParse(parts[1].Trim(), out int saturdayLimit))
-                                            _saturdayLimitMinutes = saturdayLimit;
-                                        break;
-                                    case "PasswordHash":
-                                        string hashValue = parts[1].Trim();
-                                        if (!string.IsNullOrEmpty(hashValue))
-                                        {
-                                            _passwordHash = hashValue;
-                                            passwordLoaded = true;
-                                        }
-                                        break;
-                                    case "Language":
-                                        if (int.TryParse(parts[1].Trim(), out int langValue) && Enum.IsDefined(typeof(Language), langValue))
-                                            _language = (Language)langValue;
-                                        break;
-                                }
-                            }
-                            catch
-                            {
-                                continue;
-                            }
-                        }
-                    }
+                    return null;
+                }
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var sr = new StreamReader(fs, Encoding.UTF8);
+                return sr.ReadToEnd();
+            }
+            catch (IOException)
+            {
+                System.Threading.Thread.Sleep(50);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void SafeWriteFile(string filePath, string content)
+    {
+        string tempFile = filePath + ".tmp";
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                File.WriteAllText(tempFile, content, Encoding.UTF8);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+                File.Move(tempFile, filePath);
+                return;
+            }
+            catch (IOException)
+            {
+                System.Threading.Thread.Sleep(50);
+            }
+            catch
+            {
+                return;
+            }
+        }
+    }
+
+    private void LoadSettings()
+    {
+        lock (_lockObject)
+        {
+            try
+            {
+                string? content = SafeReadFile(_settingsFilePath);
+                if (string.IsNullOrEmpty(content))
+                {
+                    content = SafeReadFile(_backupFilePath);
+                }
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    ParseSettings(content);
+                }
+                else
+                {
+                    SaveSettings();
                 }
             }
-            catch
-            {
-                _sundayLimitMinutes = 120;
-                _mondayLimitMinutes = 120;
-                _tuesdayLimitMinutes = 120;
-                _wednesdayLimitMinutes = 120;
-                _thursdayLimitMinutes = 120;
-                _fridayLimitMinutes = 120;
-                _saturdayLimitMinutes = 120;
-                _language = Language.English;
-            }
-
-            if (!passwordLoaded)
-            {
-                _passwordHash = "";
-            }
-
-            LanguageManager.CurrentLanguage = _language;
+            catch { }
         }
 
-        public void SaveSettings()
+        LanguageManager.CurrentLanguage = _language;
+    }
+
+    private void ParseSettings(string content)
+    {
+        string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (string line in lines)
         {
+            string[] parts = line.Split(new[] { '=' }, 2);
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            string key = parts[0].Trim();
+            string value = parts[1].Trim();
+
             try
             {
-                var content = $"SundayLimit={_sundayLimitMinutes}{Environment.NewLine}";
-                content += $"MondayLimit={_mondayLimitMinutes}{Environment.NewLine}";
-                content += $"TuesdayLimit={_tuesdayLimitMinutes}{Environment.NewLine}";
-                content += $"WednesdayLimit={_wednesdayLimitMinutes}{Environment.NewLine}";
-                content += $"ThursdayLimit={_thursdayLimitMinutes}{Environment.NewLine}";
-                content += $"FridayLimit={_fridayLimitMinutes}{Environment.NewLine}";
-                content += $"SaturdayLimit={_saturdayLimitMinutes}{Environment.NewLine}";
-                content += $"PasswordHash={_passwordHash}{Environment.NewLine}";
-                content += $"Language={(int)_language}";
-                File.WriteAllText(_settingsFilePath, content);
+                switch (key)
+                {
+                    case "SundayLimit":
+                        if (int.TryParse(value, out int sun)) _sundayLimitMinutes = sun;
+                        break;
+                    case "MondayLimit":
+                        if (int.TryParse(value, out int mon)) _mondayLimitMinutes = mon;
+                        break;
+                    case "TuesdayLimit":
+                        if (int.TryParse(value, out int tue)) _tuesdayLimitMinutes = tue;
+                        break;
+                    case "WednesdayLimit":
+                        if (int.TryParse(value, out int wed)) _wednesdayLimitMinutes = wed;
+                        break;
+                    case "ThursdayLimit":
+                        if (int.TryParse(value, out int thu)) _thursdayLimitMinutes = thu;
+                        break;
+                    case "FridayLimit":
+                        if (int.TryParse(value, out int fri)) _fridayLimitMinutes = fri;
+                        break;
+                    case "SaturdayLimit":
+                        if (int.TryParse(value, out int sat)) _saturdayLimitMinutes = sat;
+                        break;
+                    case "PasswordHash":
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            _passwordHash = value;
+                        }
+                        break;
+                    case "Language":
+                        if (int.TryParse(value, out int lang) && Enum.IsDefined(typeof(Language), lang))
+                        {
+                            _language = (Language)lang;
+                        }
+                        break;
+                }
             }
-            catch
-            {
-            }
+            catch { }
         }
+    }
 
-        public bool HasPassword()
+    public void SaveSettings()
+    {
+        try
+        {
+            EnsureDirectory();
+
+            string content;
+            lock (_lockObject)
+            {
+                StringBuilder sb = new();
+                sb.AppendLine($"SundayLimit={_sundayLimitMinutes}");
+                sb.AppendLine($"MondayLimit={_mondayLimitMinutes}");
+                sb.AppendLine($"TuesdayLimit={_tuesdayLimitMinutes}");
+                sb.AppendLine($"WednesdayLimit={_wednesdayLimitMinutes}");
+                sb.AppendLine($"ThursdayLimit={_thursdayLimitMinutes}");
+                sb.AppendLine($"FridayLimit={_fridayLimitMinutes}");
+                sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
+                sb.AppendLine($"PasswordHash={_passwordHash}");
+                sb.Append($"Language={(int)_language}");
+                content = sb.ToString();
+            }
+
+            if (File.Exists(_settingsFilePath))
+            {
+                try
+                {
+                    File.Copy(_settingsFilePath, _backupFilePath, true);
+                }
+                catch { }
+            }
+
+            SafeWriteFile(_settingsFilePath, content);
+        }
+        catch { }
+    }
+
+    public bool HasPassword()
+    {
+        lock (_lockObject)
         {
             return !string.IsNullOrEmpty(_passwordHash);
         }
+    }
 
-        public bool VerifyPassword(string password)
+    public bool VerifyPassword(string password)
+    {
+        try
         {
-            try
+            lock (_lockObject)
             {
                 if (string.IsNullOrEmpty(_passwordHash))
                 {
                     return true;
                 }
-                
                 if (string.IsNullOrEmpty(password))
                 {
                     return false;
                 }
-                
-                string inputHash = HashPassword(password);
-                return _passwordHash == inputHash;
-            }
-            catch
-            {
-                return false;
+                string hash = HashPassword(password);
+                return _passwordHash == hash;
             }
         }
+        catch
+        {
+            return false;
+        }
+    }
 
-        public void SetPassword(string password)
+    public void SetPassword(string password)
+    {
+        lock (_lockObject)
         {
             if (string.IsNullOrEmpty(password))
             {
@@ -276,18 +326,16 @@ namespace ScreenTimeController
                 _passwordHash = HashPassword(password);
             }
         }
+        SaveSettings();
+    }
 
-        private string HashPassword(string password)
+    private static string HashPassword(string password)
+    {
+        if (string.IsNullOrEmpty(password))
         {
-            if (string.IsNullOrEmpty(password))
-            {
-                return "";
-            }
-            using (var sha256 = SHA256.Create())
-            {
-                var bytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                return Convert.ToBase64String(bytes);
-            }
+            return "";
         }
+        using SHA256 sha = SHA256.Create();
+        return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(password)));
     }
 }

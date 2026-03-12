@@ -1,71 +1,159 @@
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 
-namespace ScreenTimeController
+namespace ScreenTimeController;
+
+internal static class Program
 {
-    internal static class Program
+    private static Mutex? _mutex;
+    private const int SW_RESTORE = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("kernel32.dll")]
+    private static extern bool AllocConsole();
+
+    [DllImport("kernel32.dll")]
+    private static extern bool FreeConsole();
+
+    [STAThread]
+    private static void Main(string[] args)
     {
-        private static Mutex _mutex = null;
-
-        [DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
-
-        [DllImport("user32.dll")]
-        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-        private const int SW_RESTORE = 9;
-
-        [STAThread]
-        static void Main()
+        if (args.Contains("--install-task"))
         {
-            bool createdNew;
-            _mutex = new Mutex(true, "ScreenTimeController_SingleInstance_Mutex", out createdNew);
-
-            if (!createdNew)
+            if (!TaskSchedulerManager.IsAdministrator())
             {
-                var currentProcess = Process.GetCurrentProcess();
-                var processes = Process.GetProcessesByName(currentProcess.ProcessName);
-
-                foreach (var process in processes)
-                {
-                    if (process.Id != currentProcess.Id)
-                    {
-                        IntPtr hWnd = process.MainWindowHandle;
-                        if (hWnd != IntPtr.Zero)
-                        {
-                            ShowWindow(hWnd, SW_RESTORE);
-                            SetForegroundWindow(hWnd);
-                        }
-                        process.Dispose();
-                        break;
-                    }
-                    process.Dispose();
-                }
-
-                MessageBox.Show("Screen Time Controller is already running!\n\nThe existing window has been brought to the front.", 
-                    "Application Already Running", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                RestartAsAdmin(args);
                 return;
             }
+            AllocConsole();
+            var (success, message) = TaskSchedulerManager.InstallTaskWithMessage();
+            Console.WriteLine(message);
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            FreeConsole();
+            return;
+        }
+        if (args.Contains("--uninstall-task"))
+        {
+            if (!TaskSchedulerManager.IsAdministrator())
+            {
+                RestartAsAdmin(args);
+                return;
+            }
+            AllocConsole();
+            var (success, message) = TaskSchedulerManager.UninstallTaskWithMessage();
+            Console.WriteLine(message);
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            FreeConsole();
+            return;
+        }
+        if (args.Contains("--check-task"))
+        {
+            AllocConsole();
+            bool installed = TaskSchedulerManager.IsTaskInstalled();
+            Console.WriteLine(installed ? "Task is installed." : "Task is NOT installed.");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            FreeConsole();
+            return;
+        }
+        if (args.Contains("--run-task"))
+        {
+            AllocConsole();
+            bool success = TaskSchedulerManager.RunTaskNow();
+            Console.WriteLine(success ? "Task triggered successfully." : "Failed to trigger task.");
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            FreeConsole();
+            return;
+        }
 
-            try
+        _mutex = new Mutex(initiallyOwned: true, "ScreenTimeController_SingleInstance_Mutex", out bool createdNew);
+        if (!createdNew)
+        {
+            Process currentProcess = Process.GetCurrentProcess();
+            Process[] processesByName = Process.GetProcessesByName(currentProcess.ProcessName);
+            bool foundActiveInstance = false;
+            foreach (Process process in processesByName)
             {
-                Application.SetHighDpiMode(HighDpiMode.SystemAware);
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-                Application.Run(new MainForm());
+                if (process.Id != currentProcess.Id)
+                {
+                    IntPtr mainWindowHandle = process.MainWindowHandle;
+                    if (mainWindowHandle != IntPtr.Zero)
+                    {
+                        ShowWindow(mainWindowHandle, SW_RESTORE);
+                        SetForegroundWindow(mainWindowHandle);
+                        foundActiveInstance = true;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            process.Kill();
+                            process.WaitForExit(3000);
+                        }
+                        catch
+                        {
+                            foundActiveInstance = true;
+                        }
+                    }
+                    process.Dispose();
+                    break;
+                }
+                process.Dispose();
             }
-            catch (Exception ex)
+            if (foundActiveInstance)
             {
-                MessageBox.Show($"Error starting application: {ex.Message}\n\n{ex.StackTrace}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(LanguageManager.GetString("AlreadyRunning"), LanguageManager.GetString("AlreadyRunningTitle"), MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+                return;
             }
-            finally
+            _mutex?.Dispose();
+            _mutex = new Mutex(initiallyOwned: true, "ScreenTimeController_SingleInstance_Mutex", out createdNew);
+        }
+        try
+        {
+            Application.SetHighDpiMode(HighDpiMode.SystemAware);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainForm());
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Error starting application: " + ex.Message + "\n\n" + ex.StackTrace, "Error", MessageBoxButtons.OK, MessageBoxIcon.Hand);
+        }
+        finally
+        {
+            _mutex.ReleaseMutex();
+            _mutex.Dispose();
+        }
+    }
+
+    private static void RestartAsAdmin(string[] args)
+    {
+        try
+        {
+            ProcessStartInfo startInfo = new()
             {
-                _mutex.ReleaseMutex();
-                _mutex.Dispose();
-            }
+                FileName = Process.GetCurrentProcess().MainModule?.FileName,
+                Arguments = string.Join(" ", args),
+                Verb = "runas",
+                UseShellExecute = true
+            };
+            Process.Start(startInfo);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to restart as administrator: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 }

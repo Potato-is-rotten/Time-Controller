@@ -1,688 +1,493 @@
 using System;
-using System.Windows.Forms;
+using System.ComponentModel;
 using System.Drawing;
+using System.Windows.Forms;
+using Microsoft.Win32;
 
-namespace ScreenTimeController
+namespace ScreenTimeController;
+
+public class SettingsForm : Form
 {
-    public partial class SettingsForm : Form
+    private readonly SettingsManager _settingsManager;
+    private bool _isPasswordVerified;
+    private bool _isClosing;
+
+    private Label? _labelSunday;
+    private NumericUpDown? _numericUpDownSundayHours;
+    private NumericUpDown? _numericUpDownSundayMinutes;
+    private Label? _labelSundayHours;
+    private Label? _labelSundayMinutes;
+
+    private Label? _labelMonday;
+    private NumericUpDown? _numericUpDownMondayHours;
+    private NumericUpDown? _numericUpDownMondayMinutes;
+    private Label? _labelMondayHours;
+    private Label? _labelMondayMinutes;
+
+    private Label? _labelTuesday;
+    private NumericUpDown? _numericUpDownTuesdayHours;
+    private NumericUpDown? _numericUpDownTuesdayMinutes;
+    private Label? _labelTuesdayHours;
+    private Label? _labelTuesdayMinutes;
+
+    private Label? _labelWednesday;
+    private NumericUpDown? _numericUpDownWednesdayHours;
+    private NumericUpDown? _numericUpDownWednesdayMinutes;
+    private Label? _labelWednesdayHours;
+    private Label? _labelWednesdayMinutes;
+
+    private Label? _labelThursday;
+    private NumericUpDown? _numericUpDownThursdayHours;
+    private NumericUpDown? _numericUpDownThursdayMinutes;
+    private Label? _labelThursdayHours;
+    private Label? _labelThursdayMinutes;
+
+    private Label? _labelFriday;
+    private NumericUpDown? _numericUpDownFridayHours;
+    private NumericUpDown? _numericUpDownFridayMinutes;
+    private Label? _labelFridayHours;
+    private Label? _labelFridayMinutes;
+
+    private Label? _labelSaturday;
+    private NumericUpDown? _numericUpDownSaturdayHours;
+    private NumericUpDown? _numericUpDownSaturdayMinutes;
+    private Label? _labelSaturdayHours;
+    private Label? _labelSaturdayMinutes;
+
+    private Label? _labelLanguage;
+    private ComboBox? _comboBoxLanguage;
+    private Button? _buttonOK;
+    private Button? _buttonCancel;
+    private Button? _buttonChangePassword;
+    private Button? _buttonApplyToAll;
+    private IContainer? components;
+
+    public SettingsForm(SettingsManager settingsManager)
     {
-        private readonly SettingsManager _settingsManager;
-        private bool _isPasswordVerified;
-        private bool _isClosing;
-        
-        private Label _labelSunday;
-        private NumericUpDown _numericUpDownSundayHours;
-        private NumericUpDown _numericUpDownSundayMinutes;
-        private Label _labelSundayHours;
-        private Label _labelSundayMinutes;
-        
-        private Label _labelMonday;
-        private NumericUpDown _numericUpDownMondayHours;
-        private NumericUpDown _numericUpDownMondayMinutes;
-        private Label _labelMondayHours;
-        private Label _labelMondayMinutes;
-        
-        private Label _labelTuesday;
-        private NumericUpDown _numericUpDownTuesdayHours;
-        private NumericUpDown _numericUpDownTuesdayMinutes;
-        private Label _labelTuesdayHours;
-        private Label _labelTuesdayMinutes;
-        
-        private Label _labelWednesday;
-        private NumericUpDown _numericUpDownWednesdayHours;
-        private NumericUpDown _numericUpDownWednesdayMinutes;
-        private Label _labelWednesdayHours;
-        private Label _labelWednesdayMinutes;
-        
-        private Label _labelThursday;
-        private NumericUpDown _numericUpDownThursdayHours;
-        private NumericUpDown _numericUpDownThursdayMinutes;
-        private Label _labelThursdayHours;
-        private Label _labelThursdayMinutes;
-        
-        private Label _labelFriday;
-        private NumericUpDown _numericUpDownFridayHours;
-        private NumericUpDown _numericUpDownFridayMinutes;
-        private Label _labelFridayHours;
-        private Label _labelFridayMinutes;
-        
-        private Label _labelSaturday;
-        private NumericUpDown _numericUpDownSaturdayHours;
-        private NumericUpDown _numericUpDownSaturdayMinutes;
-        private Label _labelSaturdayHours;
-        private Label _labelSaturdayMinutes;
-        
-        private Label _labelLanguage;
-        private ComboBox _comboBoxLanguage;
-        
-        private Button _buttonOK;
-        private Button _buttonCancel;
-        private Button _buttonChangePassword;
-        private Button _buttonApplyToAll;
+        _isClosing = false;
+        InitializeComponent();
+        _settingsManager = settingsManager;
+        _isPasswordVerified = false;
+        LoadSettings();
+        ApplyLanguage();
+        LanguageManager.LanguageChanged += OnLanguageChanged;
+        ShowPasswordPrompt();
+    }
 
-        public SettingsForm(SettingsManager settingsManager)
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        ApplyLanguage();
+    }
+
+    private void ApplyLanguage()
+    {
+        Text = LanguageManager.GetString("ScreenTimeSettings");
+        _labelSunday!.Text = LanguageManager.GetString("Sunday") + ":";
+        _labelMonday!.Text = LanguageManager.GetString("Monday") + ":";
+        _labelTuesday!.Text = LanguageManager.GetString("Tuesday") + ":";
+        _labelWednesday!.Text = LanguageManager.GetString("Wednesday") + ":";
+        _labelThursday!.Text = LanguageManager.GetString("Thursday") + ":";
+        _labelFriday!.Text = LanguageManager.GetString("Friday") + ":";
+        _labelSaturday!.Text = LanguageManager.GetString("Saturday") + ":";
+        _labelSundayHours!.Text = LanguageManager.GetString("Hours");
+        _labelMondayHours!.Text = LanguageManager.GetString("Hours");
+        _labelTuesdayHours!.Text = LanguageManager.GetString("Hours");
+        _labelWednesdayHours!.Text = LanguageManager.GetString("Hours");
+        _labelThursdayHours!.Text = LanguageManager.GetString("Hours");
+        _labelFridayHours!.Text = LanguageManager.GetString("Hours");
+        _labelSaturdayHours!.Text = LanguageManager.GetString("Hours");
+        _labelSundayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelMondayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelTuesdayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelWednesdayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelThursdayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelFridayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelSaturdayMinutes!.Text = LanguageManager.GetString("Minutes");
+        _labelLanguage!.Text = LanguageManager.GetString("Language") + ":";
+        _buttonOK!.Text = LanguageManager.GetString("OK");
+        _buttonCancel!.Text = LanguageManager.GetString("Cancel");
+        _buttonApplyToAll!.Text = LanguageManager.GetString("ApplyToAllDays");
+        _buttonChangePassword!.Text = LanguageManager.GetString("PasswordSettings");
+    }
+
+    private void ShowPasswordPrompt()
+    {
+        if (!_settingsManager.HasPassword())
         {
-            _isClosing = false;
-            InitializeComponent();
-            _settingsManager = settingsManager;
-            _isPasswordVerified = false;
-            LoadSettings();
-            ApplyLanguage();
-            LanguageManager.LanguageChanged += OnLanguageChanged;
-            ShowPasswordPrompt();
+            _isPasswordVerified = true;
+            return;
         }
-
-        private void OnLanguageChanged(object sender, EventArgs e)
+        using PasswordForm passwordForm = new(_settingsManager);
+        if (passwordForm.ShowDialog() == DialogResult.OK && passwordForm.IsPasswordCorrect)
         {
-            ApplyLanguage();
+            _isPasswordVerified = true;
+            return;
         }
+        _isClosing = true;
+        DialogResult = DialogResult.Cancel;
+        Close();
+    }
 
-        private void ApplyLanguage()
+    private void LoadSettings()
+    {
+        LoadDaySetting(_settingsManager.SundayLimit, _numericUpDownSundayHours!, _numericUpDownSundayMinutes!);
+        LoadDaySetting(_settingsManager.MondayLimit, _numericUpDownMondayHours!, _numericUpDownMondayMinutes!);
+        LoadDaySetting(_settingsManager.TuesdayLimit, _numericUpDownTuesdayHours!, _numericUpDownTuesdayMinutes!);
+        LoadDaySetting(_settingsManager.WednesdayLimit, _numericUpDownWednesdayHours!, _numericUpDownWednesdayMinutes!);
+        LoadDaySetting(_settingsManager.ThursdayLimit, _numericUpDownThursdayHours!, _numericUpDownThursdayMinutes!);
+        LoadDaySetting(_settingsManager.FridayLimit, _numericUpDownFridayHours!, _numericUpDownFridayMinutes!);
+        LoadDaySetting(_settingsManager.SaturdayLimit, _numericUpDownSaturdayHours!, _numericUpDownSaturdayMinutes!);
+        _comboBoxLanguage!.Items.Clear();
+        foreach (Language value in Enum.GetValues(typeof(Language)))
         {
-            this.Text = LanguageManager.GetString("ScreenTimeSettings");
-            _labelSunday.Text = LanguageManager.GetString("Sunday") + ":";
-            _labelMonday.Text = LanguageManager.GetString("Monday") + ":";
-            _labelTuesday.Text = LanguageManager.GetString("Tuesday") + ":";
-            _labelWednesday.Text = LanguageManager.GetString("Wednesday") + ":";
-            _labelThursday.Text = LanguageManager.GetString("Thursday") + ":";
-            _labelFriday.Text = LanguageManager.GetString("Friday") + ":";
-            _labelSaturday.Text = LanguageManager.GetString("Saturday") + ":";
-            _labelSundayHours.Text = LanguageManager.GetString("Hours");
-            _labelMondayHours.Text = LanguageManager.GetString("Hours");
-            _labelTuesdayHours.Text = LanguageManager.GetString("Hours");
-            _labelWednesdayHours.Text = LanguageManager.GetString("Hours");
-            _labelThursdayHours.Text = LanguageManager.GetString("Hours");
-            _labelFridayHours.Text = LanguageManager.GetString("Hours");
-            _labelSaturdayHours.Text = LanguageManager.GetString("Hours");
-            _labelSundayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelMondayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelTuesdayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelWednesdayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelThursdayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelFridayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelSaturdayMinutes.Text = LanguageManager.GetString("Minutes");
-            _labelLanguage.Text = LanguageManager.GetString("Language") + ":";
-            _buttonOK.Text = LanguageManager.GetString("OK");
-            _buttonCancel.Text = LanguageManager.GetString("Cancel");
-            _buttonApplyToAll.Text = LanguageManager.GetString("ApplyToAllDays");
-            _buttonChangePassword.Text = LanguageManager.GetString("PasswordSettings");
+            _comboBoxLanguage.Items.Add(LanguageManager.GetLanguageName(value));
         }
+        _comboBoxLanguage.SelectedIndex = (int)_settingsManager.Language;
+    }
 
-        private void ShowPasswordPrompt()
+    private void LoadDaySetting(TimeSpan limit, NumericUpDown hoursControl, NumericUpDown minutesControl)
+    {
+        hoursControl.Value = Math.Min(limit.Hours, 24);
+        minutesControl.Value = limit.Minutes;
+    }
+
+    private void OnOKClick(object? sender, EventArgs e)
+    {
+        if (!_isClosing)
         {
-            if (!_settingsManager.HasPassword())
-            {
-                _isPasswordVerified = true;
-                return;
-            }
-
-            using (var passwordForm = new PasswordForm(_settingsManager))
-            {
-                var result = passwordForm.ShowDialog();
-                
-                if (result == DialogResult.OK && passwordForm.IsPasswordCorrect)
-                {
-                    _isPasswordVerified = true;
-                }
-                else
-                {
-                    _isClosing = true;
-                    DialogResult = DialogResult.Cancel;
-                    Close();
-                }
-            }
-        }
-
-        private void LoadSettings()
-        {
-            LoadDaySetting(_settingsManager.SundayLimit, _numericUpDownSundayHours, _numericUpDownSundayMinutes);
-            LoadDaySetting(_settingsManager.MondayLimit, _numericUpDownMondayHours, _numericUpDownMondayMinutes);
-            LoadDaySetting(_settingsManager.TuesdayLimit, _numericUpDownTuesdayHours, _numericUpDownTuesdayMinutes);
-            LoadDaySetting(_settingsManager.WednesdayLimit, _numericUpDownWednesdayHours, _numericUpDownWednesdayMinutes);
-            LoadDaySetting(_settingsManager.ThursdayLimit, _numericUpDownThursdayHours, _numericUpDownThursdayMinutes);
-            LoadDaySetting(_settingsManager.FridayLimit, _numericUpDownFridayHours, _numericUpDownFridayMinutes);
-            LoadDaySetting(_settingsManager.SaturdayLimit, _numericUpDownSaturdayHours, _numericUpDownSaturdayMinutes);
-
-            _comboBoxLanguage.Items.Clear();
-            foreach (Language lang in System.Enum.GetValues(typeof(Language)))
-            {
-                _comboBoxLanguage.Items.Add(LanguageManager.GetLanguageName(lang));
-            }
-            _comboBoxLanguage.SelectedIndex = (int)_settingsManager.Language;
-        }
-
-        private void LoadDaySetting(TimeSpan limit, NumericUpDown hoursControl, NumericUpDown minutesControl)
-        {
-            hoursControl.Value = Math.Min(limit.Hours, 24);
-            minutesControl.Value = limit.Minutes;
-        }
-
-        private void OnOKClick(object sender, EventArgs e)
-        {
-            if (_isClosing) return;
             _isClosing = true;
             SaveSettings();
             LanguageManager.LanguageChanged -= OnLanguageChanged;
             DialogResult = DialogResult.OK;
             Close();
         }
+    }
 
-        private void OnCancelClick(object sender, EventArgs e)
+    private void OnCancelClick(object? sender, EventArgs e)
+    {
+        if (!_isClosing)
         {
-            if (_isClosing) return;
             _isClosing = true;
             LanguageManager.LanguageChanged -= OnLanguageChanged;
             DialogResult = DialogResult.Cancel;
             Close();
         }
+    }
 
-        private void OnApplyToAllClick(object sender, EventArgs e)
+    private void SettingsForm_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Return)
         {
-            decimal hours = _numericUpDownSundayHours.Value;
-            decimal minutes = _numericUpDownSundayMinutes.Value;
-            
-            _numericUpDownMondayHours.Value = hours;
-            _numericUpDownMondayMinutes.Value = minutes;
-            
-            _numericUpDownTuesdayHours.Value = hours;
-            _numericUpDownTuesdayMinutes.Value = minutes;
-            
-            _numericUpDownWednesdayHours.Value = hours;
-            _numericUpDownWednesdayMinutes.Value = minutes;
-            
-            _numericUpDownThursdayHours.Value = hours;
-            _numericUpDownThursdayMinutes.Value = minutes;
-            
-            _numericUpDownFridayHours.Value = hours;
-            _numericUpDownFridayMinutes.Value = minutes;
-            
-            _numericUpDownSaturdayHours.Value = hours;
-            _numericUpDownSaturdayMinutes.Value = minutes;
+            OnOKClick(sender, e);
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+        else if (e.KeyCode == Keys.Escape)
+        {
+            OnCancelClick(sender, e);
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+        }
+    }
 
-            MessageBox.Show(LanguageManager.GetString("AllDaysSet"), LanguageManager.GetString("Info"), MessageBoxButtons.OK, MessageBoxIcon.Information);
+    private void OnApplyToAllClick(object? sender, EventArgs e)
+    {
+        decimal hours = _numericUpDownSundayHours!.Value;
+        decimal minutes = _numericUpDownSundayMinutes!.Value;
+        _numericUpDownMondayHours!.Value = hours;
+        _numericUpDownMondayMinutes!.Value = minutes;
+        _numericUpDownTuesdayHours!.Value = hours;
+        _numericUpDownTuesdayMinutes!.Value = minutes;
+        _numericUpDownWednesdayHours!.Value = hours;
+        _numericUpDownWednesdayMinutes!.Value = minutes;
+        _numericUpDownThursdayHours!.Value = hours;
+        _numericUpDownThursdayMinutes!.Value = minutes;
+        _numericUpDownFridayHours!.Value = hours;
+        _numericUpDownFridayMinutes!.Value = minutes;
+        _numericUpDownSaturdayHours!.Value = hours;
+        _numericUpDownSaturdayMinutes!.Value = minutes;
+        MessageBox.Show(LanguageManager.GetString("AllDaysSet"), LanguageManager.GetString("Info"), MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
+    }
+
+    private void OnChangePasswordClick(object? sender, EventArgs e)
+    {
+        using ChangePasswordForm changePasswordForm = new(_settingsManager);
+        changePasswordForm.ShowDialog();
+    }
+
+    private void SaveSettings()
+    {
+        _settingsManager.SundayLimit = GetTimeFromControls(_numericUpDownSundayHours!, _numericUpDownSundayMinutes!);
+        _settingsManager.MondayLimit = GetTimeFromControls(_numericUpDownMondayHours!, _numericUpDownMondayMinutes!);
+        _settingsManager.TuesdayLimit = GetTimeFromControls(_numericUpDownTuesdayHours!, _numericUpDownTuesdayMinutes!);
+        _settingsManager.WednesdayLimit = GetTimeFromControls(_numericUpDownWednesdayHours!, _numericUpDownWednesdayMinutes!);
+        _settingsManager.ThursdayLimit = GetTimeFromControls(_numericUpDownThursdayHours!, _numericUpDownThursdayMinutes!);
+        _settingsManager.FridayLimit = GetTimeFromControls(_numericUpDownFridayHours!, _numericUpDownFridayMinutes!);
+        _settingsManager.SaturdayLimit = GetTimeFromControls(_numericUpDownSaturdayHours!, _numericUpDownSaturdayMinutes!);
+        _settingsManager.Language = (Language)_comboBoxLanguage!.SelectedIndex;
+        _settingsManager.SaveSettings();
+    }
+
+    private static TimeSpan GetTimeFromControls(NumericUpDown hoursControl, NumericUpDown minutesControl)
+    {
+        int hours = (int)hoursControl.Value;
+        int minutes = (int)minutesControl.Value;
+        return new TimeSpan(hours, minutes, 0);
+    }
+
+    private void InitializeComponent()
+    {
+        this.components = new System.ComponentModel.Container();
+        Rectangle screenBounds = Screen.PrimaryScreen.WorkingArea;
+        int maxWidth = (int)(screenBounds.Width * 0.9);
+        int maxHeight = (int)(screenBounds.Height * 0.9);
+        int windowWidth = Math.Min(800, maxWidth);
+        int windowHeight = Math.Min(700, maxHeight);
+        ClientSize = new Size(windowWidth, windowHeight);
+        MinimumSize = new Size(500, 500);
+        Text = "Screen Time Settings";
+        FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+        MaximizeBox = false;
+        MinimizeBox = false;
+        StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+        BackColor = Color.FromArgb(240, 240, 240);
+        KeyPreview = true;
+        KeyDown += new KeyEventHandler(SettingsForm_KeyDown);
+
+        Panel outerPanel = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(15)
+        };
+
+        TableLayoutPanel mainTable = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            AutoScroll = true
+        };
+        mainTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        mainTable.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+        mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 80f));
+        mainTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 70f));
+
+        TableLayoutPanel daysTable = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 5,
+            RowCount = 8,
+            AutoScroll = true,
+            Padding = new Padding(10)
+        };
+        daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+        daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+        daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
+        daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
+        for (int i = 0; i < 8; i++)
+        {
+            daysTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 55f));
         }
 
-        private void OnChangePasswordClick(object sender, EventArgs e)
+        AddDayRow(daysTable, 0, ref _labelSunday, ref _numericUpDownSundayHours, ref _labelSundayHours, ref _numericUpDownSundayMinutes, ref _labelSundayMinutes);
+        AddDayRow(daysTable, 1, ref _labelMonday, ref _numericUpDownMondayHours, ref _labelMondayHours, ref _numericUpDownMondayMinutes, ref _labelMondayMinutes);
+        AddDayRow(daysTable, 2, ref _labelTuesday, ref _numericUpDownTuesdayHours, ref _labelTuesdayHours, ref _numericUpDownTuesdayMinutes, ref _labelTuesdayMinutes);
+        AddDayRow(daysTable, 3, ref _labelWednesday, ref _numericUpDownWednesdayHours, ref _labelWednesdayHours, ref _numericUpDownWednesdayMinutes, ref _labelWednesdayMinutes);
+        AddDayRow(daysTable, 4, ref _labelThursday, ref _numericUpDownThursdayHours, ref _labelThursdayHours, ref _numericUpDownThursdayMinutes, ref _labelThursdayMinutes);
+        AddDayRow(daysTable, 5, ref _labelFriday, ref _numericUpDownFridayHours, ref _labelFridayHours, ref _numericUpDownFridayMinutes, ref _labelFridayMinutes);
+        AddDayRow(daysTable, 6, ref _labelSaturday, ref _numericUpDownSaturdayHours, ref _labelSaturdayHours, ref _numericUpDownSaturdayMinutes, ref _labelSaturdayMinutes);
+
+        _labelLanguage = new Label
         {
-            using (var changePasswordForm = new ChangePasswordForm(_settingsManager))
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
+        };
+        daysTable.Controls.Add(_labelLanguage, 0, 7);
+
+        _comboBoxLanguage = new ComboBox
+        {
+            Dock = DockStyle.Fill,
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = new Font("Segoe UI", 11f)
+        };
+        daysTable.SetColumnSpan(_comboBoxLanguage, 4);
+        daysTable.Controls.Add(_comboBoxLanguage, 1, 7);
+
+        mainTable.Controls.Add(daysTable, 0, 0);
+
+        FlowLayoutPanel buttonPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Padding = new Padding(10),
+            Anchor = AnchorStyles.Left | AnchorStyles.Right
+        };
+
+        _buttonApplyToAll = new Button
+        {
+            Font = new Font("Segoe UI", 11f),
+            Size = new Size(180, 45),
+            BackColor = Color.FromArgb(0, 122, 204),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5),
+            Anchor = AnchorStyles.Left
+        };
+        _buttonApplyToAll.FlatAppearance.BorderSize = 0;
+        _buttonApplyToAll.Click += new EventHandler(OnApplyToAllClick);
+        buttonPanel.Controls.Add(_buttonApplyToAll);
+
+        _buttonChangePassword = new Button
+        {
+            Font = new Font("Segoe UI", 11f),
+            Size = new Size(180, 45),
+            BackColor = Color.FromArgb(0, 122, 204),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5),
+            Anchor = AnchorStyles.Left
+        };
+        _buttonChangePassword.FlatAppearance.BorderSize = 0;
+        _buttonChangePassword.Click += new EventHandler(OnChangePasswordClick);
+        buttonPanel.Controls.Add(_buttonChangePassword);
+
+        mainTable.Controls.Add(buttonPanel, 0, 1);
+
+        FlowLayoutPanel okCancelPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            WrapContents = false,
+            Padding = new Padding(10)
+        };
+
+        _buttonCancel = new Button
+        {
+            Font = new Font("Segoe UI", 11f),
+            Size = new Size(120, 45),
+            BackColor = Color.FromArgb(200, 200, 200),
+            ForeColor = Color.Black,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5)
+        };
+        _buttonCancel.FlatAppearance.BorderSize = 0;
+        _buttonCancel.Click += new EventHandler(OnCancelClick);
+        okCancelPanel.Controls.Add(_buttonCancel);
+
+        _buttonOK = new Button
+        {
+            Font = new Font("Segoe UI", 11f),
+            Size = new Size(120, 45),
+            BackColor = Color.FromArgb(0, 122, 204),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5)
+        };
+        _buttonOK.FlatAppearance.BorderSize = 0;
+        _buttonOK.Click += new EventHandler(OnOKClick);
+        okCancelPanel.Controls.Add(_buttonOK);
+
+        mainTable.Controls.Add(okCancelPanel, 0, 2);
+
+        outerPanel.Controls.Add(mainTable);
+        Controls.Add(outerPanel);
+
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        if (IsHandleCreated && !IsDisposed)
+        {
+            try
             {
-                changePasswordForm.ShowDialog();
+                BeginInvoke(new Action(AdjustWindowSize));
+            }
+            catch { }
+        }
+    }
+
+    private void AdjustWindowSize()
+    {
+        try
+        {
+            Rectangle screenBounds = Screen.PrimaryScreen.WorkingArea;
+            int maxWidth = (int)(screenBounds.Width * 0.9);
+            int maxHeight = (int)(screenBounds.Height * 0.9);
+            int windowWidth = Math.Min(800, maxWidth);
+            int windowHeight = Math.Min(700, maxHeight);
+            if (Width > maxWidth || Height > maxHeight)
+            {
+                ClientSize = new Size(windowWidth, windowHeight);
+                CenterToScreen();
             }
         }
+        catch { }
+    }
 
-        private void SaveSettings()
+    private void AddDayRow(TableLayoutPanel table, int row, ref Label? dayLabel, ref NumericUpDown? hoursNum, ref Label? hoursLabel, ref NumericUpDown? minutesNum, ref Label? minutesLabel)
+    {
+        dayLabel = new Label
         {
-            _settingsManager.SundayLimit = GetTimeFromControls(_numericUpDownSundayHours, _numericUpDownSundayMinutes);
-            _settingsManager.MondayLimit = GetTimeFromControls(_numericUpDownMondayHours, _numericUpDownMondayMinutes);
-            _settingsManager.TuesdayLimit = GetTimeFromControls(_numericUpDownTuesdayHours, _numericUpDownTuesdayMinutes);
-            _settingsManager.WednesdayLimit = GetTimeFromControls(_numericUpDownWednesdayHours, _numericUpDownWednesdayMinutes);
-            _settingsManager.ThursdayLimit = GetTimeFromControls(_numericUpDownThursdayHours, _numericUpDownThursdayMinutes);
-            _settingsManager.FridayLimit = GetTimeFromControls(_numericUpDownFridayHours, _numericUpDownFridayMinutes);
-            _settingsManager.SaturdayLimit = GetTimeFromControls(_numericUpDownSaturdayHours, _numericUpDownSaturdayMinutes);
-            
-            _settingsManager.Language = (Language)_comboBoxLanguage.SelectedIndex;
-            
-            _settingsManager.SaveSettings();
-        }
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
+        };
+        table.Controls.Add(dayLabel, 0, row);
 
-        private TimeSpan GetTimeFromControls(NumericUpDown hoursControl, NumericUpDown minutesControl)
+        hoursNum = new NumericUpDown
         {
-            int hours = (int)hoursControl.Value;
-            int minutes = (int)minutesControl.Value;
-            return new TimeSpan(hours, minutes, 0);
-        }
+            Dock = DockStyle.Fill,
+            Minimum = 0,
+            Maximum = 24,
+            Font = new Font("Segoe UI", 11f)
+        };
+        table.Controls.Add(hoursNum, 1, row);
 
-        private void InitializeComponent()
+        hoursLabel = new Label
         {
-            this.components = new System.ComponentModel.Container();
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1100, 950);
-            this.Text = "Screen Time Settings";
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
-            this.MinimizeBox = false;
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(240, 240, 240);
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 10f),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
+        };
+        table.Controls.Add(hoursLabel, 2, row);
 
-            var mainPanel = new Panel
+        minutesNum = new NumericUpDown
+        {
+            Dock = DockStyle.Fill,
+            Minimum = 0,
+            Maximum = 59,
+            Font = new Font("Segoe UI", 11f)
+        };
+        table.Controls.Add(minutesNum, 3, row);
+
+        minutesLabel = new Label
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 10f),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true
+        };
+        table.Controls.Add(minutesLabel, 4, row);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            try
             {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(50)
-            };
-
-            int yPos = 50;
-            int rowHeight = 70;
-            int labelWidth = 200;
-            int numWidth = 100;
-            int unitWidth = 100;
-
-            _labelSunday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSunday);
-
-            _numericUpDownSundayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownSundayHours);
-
-            _labelSundayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSundayHours);
-
-            _numericUpDownSundayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownSundayMinutes);
-
-            _labelSundayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSundayMinutes);
-
-            yPos += rowHeight;
-
-            _labelMonday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelMonday);
-
-            _numericUpDownMondayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownMondayHours);
-
-            _labelMondayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelMondayHours);
-
-            _numericUpDownMondayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownMondayMinutes);
-
-            _labelMondayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelMondayMinutes);
-
-            yPos += rowHeight;
-
-            _labelTuesday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelTuesday);
-
-            _numericUpDownTuesdayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownTuesdayHours);
-
-            _labelTuesdayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelTuesdayHours);
-
-            _numericUpDownTuesdayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownTuesdayMinutes);
-
-            _labelTuesdayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelTuesdayMinutes);
-
-            yPos += rowHeight;
-
-            _labelWednesday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelWednesday);
-
-            _numericUpDownWednesdayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownWednesdayHours);
-
-            _labelWednesdayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelWednesdayHours);
-
-            _numericUpDownWednesdayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownWednesdayMinutes);
-
-            _labelWednesdayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelWednesdayMinutes);
-
-            yPos += rowHeight;
-
-            _labelThursday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelThursday);
-
-            _numericUpDownThursdayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownThursdayHours);
-
-            _labelThursdayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelThursdayHours);
-
-            _numericUpDownThursdayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownThursdayMinutes);
-
-            _labelThursdayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelThursdayMinutes);
-
-            yPos += rowHeight;
-
-            _labelFriday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelFriday);
-
-            _numericUpDownFridayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownFridayHours);
-
-            _labelFridayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelFridayHours);
-
-            _numericUpDownFridayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownFridayMinutes);
-
-            _labelFridayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelFridayMinutes);
-
-            yPos += rowHeight;
-
-            _labelSaturday = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSaturday);
-
-            _numericUpDownSaturdayHours = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 24,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownSaturdayHours);
-
-            _labelSaturdayHours = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(400, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSaturdayHours);
-
-            _numericUpDownSaturdayMinutes = new NumericUpDown
-            {
-                Minimum = 0,
-                Maximum = 59,
-                Increment = 1,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(520, yPos + 5),
-                Size = new Size(numWidth, 40)
-            };
-            mainPanel.Controls.Add(_numericUpDownSaturdayMinutes);
-
-            _labelSaturdayMinutes = new Label
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(640, yPos),
-                Size = new Size(unitWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelSaturdayMinutes);
-
-            yPos += rowHeight + 20;
-
-            _labelLanguage = new Label
-            {
-                Font = new Font("Segoe UI", 16, FontStyle.Bold),
-                Location = new Point(50, yPos),
-                Size = new Size(labelWidth, 50),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            mainPanel.Controls.Add(_labelLanguage);
-
-            _comboBoxLanguage = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(280, yPos + 5),
-                Size = new Size(380, 40)
-            };
-            mainPanel.Controls.Add(_comboBoxLanguage);
-
-            yPos += rowHeight + 30;
-
-            _buttonApplyToAll = new Button
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(50, yPos),
-                Size = new Size(250, 55),
-                BackColor = Color.FromArgb(0, 122, 204),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            _buttonApplyToAll.FlatAppearance.BorderSize = 0;
-            _buttonApplyToAll.Click += OnApplyToAllClick;
-            mainPanel.Controls.Add(_buttonApplyToAll);
-
-            _buttonChangePassword = new Button
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(330, yPos),
-                Size = new Size(250, 55),
-                BackColor = Color.FromArgb(0, 122, 204),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            _buttonChangePassword.FlatAppearance.BorderSize = 0;
-            _buttonChangePassword.Click += OnChangePasswordClick;
-            mainPanel.Controls.Add(_buttonChangePassword);
-
-            yPos += 80;
-
-            _buttonOK = new Button
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(350, yPos),
-                Size = new Size(150, 55),
-                BackColor = Color.FromArgb(0, 122, 204),
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat
-            };
-            _buttonOK.FlatAppearance.BorderSize = 0;
-            _buttonOK.Click += OnOKClick;
-            mainPanel.Controls.Add(_buttonOK);
-
-            _buttonCancel = new Button
-            {
-                Font = new Font("Segoe UI", 15),
-                Location = new Point(530, yPos),
-                Size = new Size(150, 55),
-                BackColor = Color.FromArgb(200, 200, 200),
-                ForeColor = Color.Black,
-                FlatStyle = FlatStyle.Flat
-            };
-            _buttonCancel.FlatAppearance.BorderSize = 0;
-            _buttonCancel.Click += OnCancelClick;
-            mainPanel.Controls.Add(_buttonCancel);
-
-            this.Controls.Add(mainPanel);
+                SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+            }
+            catch { }
+            components?.Dispose();
         }
-
-        private System.ComponentModel.IContainer components;
+        base.Dispose(disposing);
     }
 }
