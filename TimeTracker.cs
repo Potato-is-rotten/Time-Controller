@@ -2,338 +2,539 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Timers;
 
-namespace ScreenTimeController
+namespace ScreenTimeController;
+
+public class TimeTracker : IDisposable
 {
-    public class TimeTracker : IDisposable
+    private TimeSpan _totalUsage;
+    private TimeSpan _bonusTime;
+    private readonly Dictionary<string, TimeSpan> _appUsage;
+    private readonly SettingsManager _settingsManager;
+    private readonly string _dataDirectory;
+    private readonly string _usageFilePath;
+    private readonly string _appUsageFilePath;
+    private readonly string _backupFilePath;
+    private readonly string _cleanExitFilePath;
+    private System.Timers.Timer? _midnightTimer;
+    private System.Timers.Timer? _saveTimer;
+    private DateTime _lastCheckedDate;
+    private readonly object _lockObject = new();
+    private readonly object _saveLock = new();
+    private bool _isDisposed;
+    private bool _needsSave;
+
+    public TimeSpan TotalUsage
     {
-        private TimeSpan _totalUsage;
-        private TimeSpan _bonusTime;
-        private readonly Dictionary<string, TimeSpan> _appUsage;
-        private readonly SettingsManager _settingsManager;
-        private readonly string _usageFilePath;
-        private readonly string _appUsageFilePath;
-        private System.Timers.Timer _midnightTimer;
-        private DateTime _lastCheckedDate;
-        private readonly object _lockObject = new object();
-        private bool _isDisposed;
+        get { lock (_lockObject) { return _totalUsage; } }
+    }
 
-        public TimeSpan TotalUsage
+    public TimeSpan BonusTime
+    {
+        get { lock (_lockObject) { return _bonusTime; } }
+    }
+
+    public TimeSpan EffectiveUsage
+    {
+        get { lock (_lockObject) { return _totalUsage - _bonusTime; } }
+    }
+
+    public Dictionary<string, TimeSpan> AppUsage
+    {
+        get { lock (_lockObject) { return new Dictionary<string, TimeSpan>(_appUsage); } }
+    }
+
+    public TimeTracker(SettingsManager settingsManager)
+    {
+        _settingsManager = settingsManager;
+        _appUsage = new Dictionary<string, TimeSpan>();
+        _bonusTime = TimeSpan.Zero;
+        _dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
+        _usageFilePath = Path.Combine(_dataDirectory, "usage.txt");
+        _appUsageFilePath = Path.Combine(_dataDirectory, "app_usage.txt");
+        _backupFilePath = Path.Combine(_dataDirectory, "usage_backup.txt");
+        _cleanExitFilePath = GetCleanExitFilePath();
+        _lastCheckedDate = DateTime.Today;
+        _isDisposed = false;
+        _needsSave = false;
+
+        EnsureDataDirectory();
+        LoadAllData();
+        CheckAndApplyExitPenalty();
+        SetupMidnightTimer();
+        SetupSaveTimer();
+    }
+
+    private static string GetCleanExitFilePath()
+    {
+        string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+        try
         {
-            get
+            if (!Directory.Exists(commonDataDir))
             {
-                lock (_lockObject)
-                {
-                    return _totalUsage;
-                }
+                Directory.CreateDirectory(commonDataDir);
             }
         }
+        catch { }
+        return Path.Combine(commonDataDir, "clean_exit.txt");
+    }
 
-        public TimeSpan BonusTime
+    private void EnsureDataDirectory()
+    {
+        try
         {
-            get
+            if (!Directory.Exists(_dataDirectory))
             {
-                lock (_lockObject)
-                {
-                    return _bonusTime;
-                }
+                Directory.CreateDirectory(_dataDirectory);
             }
         }
+        catch { }
+    }
 
-        public TimeSpan EffectiveUsage
+    private void SetupSaveTimer()
+    {
+        _saveTimer = new System.Timers.Timer(10000.0);
+        _saveTimer.Elapsed += OnSaveTimerTick;
+        _saveTimer.Start();
+    }
+
+    private void OnSaveTimerTick(object? sender, ElapsedEventArgs e)
+    {
+        if (_needsSave)
         {
-            get
-            {
-                lock (_lockObject)
-                {
-                    return _totalUsage - _bonusTime;
-                }
-            }
+            SaveAllData();
+            _needsSave = false;
         }
+    }
 
-        public Dictionary<string, TimeSpan> AppUsage
+    private void SetupMidnightTimer()
+    {
+        _midnightTimer = new System.Timers.Timer(60000.0);
+        _midnightTimer.Elapsed += OnMidnightCheck;
+        _midnightTimer.Start();
+    }
+
+    private void OnMidnightCheck(object? sender, ElapsedEventArgs e)
+    {
+        CheckForNewDay();
+    }
+
+    private void CheckForNewDay()
+    {
+        DateTime today = DateTime.Today;
+        if (today != _lastCheckedDate)
         {
-            get
-            {
-                lock (_lockObject)
-                {
-                    return new Dictionary<string, TimeSpan>(_appUsage);
-                }
-            }
-        }
-
-        public TimeTracker(SettingsManager settingsManager)
-        {
-            _settingsManager = settingsManager;
-            _appUsage = new Dictionary<string, TimeSpan>();
-            _bonusTime = TimeSpan.Zero;
-            _usageFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "usage.txt");
-            _appUsageFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "app_usage.txt");
-            _lastCheckedDate = DateTime.Today;
-            _isDisposed = false;
-            InitializeFiles();
-            LoadUsage();
-            SetupMidnightTimer();
-        }
-
-        private void SetupMidnightTimer()
-        {
-            _midnightTimer = new System.Timers.Timer(60000);
-            _midnightTimer.Elapsed += OnMidnightCheck;
-            _midnightTimer.Start();
-        }
-
-        private void OnMidnightCheck(object sender, ElapsedEventArgs e)
-        {
-            CheckForNewDay();
-        }
-
-        private void CheckForNewDay()
-        {
-            DateTime currentDate = DateTime.Today;
-            if (currentDate != _lastCheckedDate)
-            {
-                lock (_lockObject)
-                {
-                    _totalUsage = TimeSpan.Zero;
-                    _bonusTime = TimeSpan.Zero;
-                    _appUsage.Clear();
-                    _lastCheckedDate = currentDate;
-                    SaveUsageInternal();
-                }
-            }
-        }
-
-        private void InitializeFiles()
-        {
-            try
-            {
-                var directory = Path.GetDirectoryName(_usageFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                if (!File.Exists(_usageFilePath))
-                {
-                    File.WriteAllText(_usageFilePath, $"{DateTime.Today:yyyy-MM-dd}|0|0");
-                }
-
-                if (!File.Exists(_appUsageFilePath))
-                {
-                    File.WriteAllText(_appUsageFilePath, $"{DateTime.Today:yyyy-MM-dd}");
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        private void LoadUsage()
-        {
-            try
-            {
-                if (File.Exists(_usageFilePath))
-                {
-                    var content = File.ReadAllText(_usageFilePath);
-                    var parts = content.Split('|');
-                    if (parts.Length >= 2)
-                    {
-                        var date = DateTime.ParseExact(parts[0], "yyyy-MM-dd", CultureInfo.InvariantCulture);
-                        if (date.Date == DateTime.Today)
-                        {
-                            lock (_lockObject)
-                            {
-                                if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double minutes))
-                                {
-                                    _totalUsage = TimeSpan.FromMinutes(minutes);
-                                }
-                                if (parts.Length >= 3 && double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out double bonusMinutes))
-                                {
-                                    _bonusTime = TimeSpan.FromMinutes(bonusMinutes);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            lock (_lockObject)
-                            {
-                                _totalUsage = TimeSpan.Zero;
-                                _bonusTime = TimeSpan.Zero;
-                                _appUsage.Clear();
-                            }
-                            SaveUsage();
-                        }
-                    }
-                }
-
-                if (File.Exists(_appUsageFilePath))
-                {
-                    var appContent = File.ReadAllText(_appUsageFilePath);
-                    var appLines = appContent.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                    if (appLines.Length > 0)
-                    {
-                        var appDateLine = appLines[0];
-                        if (appDateLine.StartsWith(DateTime.Today.ToString("yyyy-MM-dd")))
-                        {
-                            lock (_lockObject)
-                            {
-                                for (int i = 1; i < appLines.Length; i++)
-                                {
-                                    var appParts = appLines[i].Split('|');
-                                    if (appParts.Length == 2)
-                                    {
-                                        var appName = appParts[0];
-                                        if (double.TryParse(appParts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double appMinutes))
-                                        {
-                                            _appUsage[appName] = TimeSpan.FromMinutes(appMinutes);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            lock (_lockObject)
-                            {
-                                _appUsage.Clear();
-                            }
-                            SaveUsage();
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                lock (_lockObject)
-                {
-                    _totalUsage = TimeSpan.Zero;
-                    _bonusTime = TimeSpan.Zero;
-                    _appUsage.Clear();
-                }
-                SaveUsage();
-            }
-        }
-
-        public void RecordUsage(TimeSpan duration, string appName = "Unknown")
-        {
-            if (duration <= TimeSpan.Zero || string.IsNullOrEmpty(appName))
-                return;
-
-            lock (_lockObject)
-            {
-                _totalUsage += duration;
-
-                if (_appUsage.ContainsKey(appName))
-                {
-                    _appUsage[appName] += duration;
-                }
-                else
-                {
-                    _appUsage[appName] = duration;
-                }
-            }
-            SaveUsage();
-        }
-
-        public void AddBonusTime(TimeSpan bonus)
-        {
-            if (bonus <= TimeSpan.Zero)
-                return;
-
-            lock (_lockObject)
-            {
-                _bonusTime += bonus;
-            }
-            SaveUsage();
-        }
-
-        public void UseBonusTime(TimeSpan duration)
-        {
-            if (duration <= TimeSpan.Zero)
-                return;
-
-            lock (_lockObject)
-            {
-                if (_bonusTime >= duration)
-                {
-                    _bonusTime -= duration;
-                }
-                else
-                {
-                    _bonusTime = TimeSpan.Zero;
-                }
-            }
-            SaveUsage();
-        }
-
-        private void SaveUsage()
-        {
-            try
-            {
-                SaveUsageInternal();
-            }
-            catch
-            {
-            }
-        }
-
-        private void SaveUsageInternal()
-        {
-            try
-            {
-                var directory = Path.GetDirectoryName(_usageFilePath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                string usageContent;
-                string appContent;
-                
-                lock (_lockObject)
-                {
-                    usageContent = $"{DateTime.Today:yyyy-MM-dd}|{_totalUsage.TotalMinutes.ToString(CultureInfo.InvariantCulture)}|{_bonusTime.TotalMinutes.ToString(CultureInfo.InvariantCulture)}";
-
-                    appContent = $"{DateTime.Today:yyyy-MM-dd}" + Environment.NewLine;
-                    foreach (var app in _appUsage)
-                    {
-                        appContent += $"{app.Key}|{app.Value.TotalMinutes.ToString(CultureInfo.InvariantCulture)}" + Environment.NewLine;
-                    }
-                }
-                
-                File.WriteAllText(_usageFilePath, usageContent);
-                File.WriteAllText(_appUsageFilePath, appContent);
-            }
-            catch
-            {
-            }
-        }
-
-        public void Reset()
-        {
+            SaveAllData();
             lock (_lockObject)
             {
                 _totalUsage = TimeSpan.Zero;
                 _bonusTime = TimeSpan.Zero;
                 _appUsage.Clear();
-                SaveUsageInternal();
+                _lastCheckedDate = today;
+            }
+            SaveAllData();
+        }
+    }
+
+    private void LoadAllData()
+    {
+        lock (_lockObject)
+        {
+            try
+            {
+                LoadUsageData();
+                LoadAppUsageData();
+            }
+            catch { }
+        }
+    }
+
+    private void LoadUsageData()
+    {
+        string? content = SafeReadFile(_usageFilePath);
+        if (string.IsNullOrEmpty(content))
+        {
+            content = SafeReadFile(_backupFilePath);
+        }
+
+        if (string.IsNullOrEmpty(content))
+        {
+            return;
+        }
+
+        string[] parts = content.Split('|');
+        if (parts.Length < 2)
+        {
+            return;
+        }
+
+        if (!DateTime.TryParseExact(parts[0], "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime fileDate))
+        {
+            return;
+        }
+
+        if (fileDate.Date == DateTime.Today)
+        {
+            if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double todayMinutes))
+            {
+                _totalUsage = TimeSpan.FromMinutes(todayMinutes);
+            }
+
+            if (parts.Length >= 3 && double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out double bonusMinutes))
+            {
+                _bonusTime = TimeSpan.FromMinutes(bonusMinutes);
             }
         }
-
-        public TimeSpan GetDailyLimit()
+        else if (fileDate.Date == DateTime.Today.AddDays(-1))
         {
-            return _settingsManager.GetDailyLimit();
+            if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double yesterdayMinutes))
+            {
+                _totalUsage = TimeSpan.FromMinutes(yesterdayMinutes);
+            }
+
+            if (parts.Length >= 3 && double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out double bonusMinutes))
+            {
+                _bonusTime = TimeSpan.FromMinutes(bonusMinutes);
+            }
+        }
+    }
+
+    private void LoadAppUsageData()
+    {
+        string? content = SafeReadFile(_appUsageFilePath);
+        if (string.IsNullOrEmpty(content))
+        {
+            return;
         }
 
-        public void Dispose()
+        string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length == 0)
         {
-            if (_isDisposed) return;
+            return;
+        }
+
+        string todayStr = DateTime.Today.ToString("yyyy-MM-dd");
+        string yesterdayStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+        string? firstLine = lines[0];
+
+        if (!firstLine.StartsWith(todayStr) && !firstLine.StartsWith(yesterdayStr))
+        {
+            return;
+        }
+
+        for (int i = 1; i < lines.Length; i++)
+        {
+            string[] parts = lines[i].Split('|');
+            if (parts.Length == 2)
+            {
+                string appName = parts[0];
+                if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double minutes))
+                {
+                    _appUsage[appName] = TimeSpan.FromMinutes(minutes);
+                }
+            }
+        }
+    }
+
+    private string? SafeReadFile(string filePath)
+    {
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    return null;
+                }
+
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var sr = new StreamReader(fs, Encoding.UTF8);
+                return sr.ReadToEnd();
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(50);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void SafeWriteFile(string filePath, string content)
+    {
+        string? directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            try { Directory.CreateDirectory(directory); } catch { }
+        }
+
+        for (int attempt = 0; attempt < 10; attempt++)
+        {
+            try
+            {
+                lock (_saveLock)
+                {
+                    if (File.Exists(filePath))
+                    {
+                        try { File.Delete(filePath); } catch { }
+                    }
+                    File.WriteAllText(filePath, content, Encoding.UTF8);
+                }
+                return;
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(100);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                try
+                {
+                    File.WriteAllText(filePath, content, Encoding.UTF8);
+                    return;
+                }
+                catch { Thread.Sleep(100); }
+            }
+            catch
+            {
+                break;
+            }
+        }
+    }
+
+    public void RecordUsage(TimeSpan duration, string appName = "Unknown")
+    {
+        if (duration <= TimeSpan.Zero || string.IsNullOrEmpty(appName))
+        {
+            return;
+        }
+
+        lock (_lockObject)
+        {
+            _totalUsage += duration;
+            if (_appUsage.ContainsKey(appName))
+            {
+                _appUsage[appName] += duration;
+            }
+            else
+            {
+                _appUsage[appName] = duration;
+            }
+        }
+        _needsSave = true;
+    }
+
+    public void ForceSave()
+    {
+        SaveAllData();
+        _needsSave = false;
+    }
+
+    public void AddBonusTime(TimeSpan bonus)
+    {
+        if (bonus <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        lock (_lockObject)
+        {
+            _bonusTime += bonus;
+        }
+        _needsSave = true;
+    }
+
+    public void UseBonusTime(TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        lock (_lockObject)
+        {
+            if (_bonusTime >= duration)
+            {
+                _bonusTime -= duration;
+            }
+            else
+            {
+                _bonusTime = TimeSpan.Zero;
+            }
+        }
+        _needsSave = true;
+    }
+
+    private void SaveAllData()
+    {
+        try
+        {
+            SaveUsageData();
+            SaveAppUsageData();
+        }
+        catch { }
+    }
+
+    private void SaveUsageData()
+    {
+        try
+        {
+            string content;
+            lock (_lockObject)
+            {
+                content = string.Format(CultureInfo.InvariantCulture,
+                    "{0:yyyy-MM-dd}|{1}|{2}",
+                    DateTime.Today,
+                    _totalUsage.TotalMinutes,
+                    _bonusTime.TotalMinutes);
+            }
+
+            if (File.Exists(_usageFilePath))
+            {
+                try
+                {
+                    File.Copy(_usageFilePath, _backupFilePath, true);
+                }
+                catch { }
+            }
+
+            SafeWriteFile(_usageFilePath, content);
+        }
+        catch { }
+    }
+
+    private void SaveAppUsageData()
+    {
+        try
+        {
+            StringBuilder sb = new();
+            sb.AppendLine(DateTime.Today.ToString("yyyy-MM-dd"));
+
+            lock (_lockObject)
+            {
+                foreach (var kvp in _appUsage)
+                {
+                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}|{1}", kvp.Key, kvp.Value.TotalMinutes));
+                }
+            }
+
+            SafeWriteFile(_appUsageFilePath, sb.ToString());
+        }
+        catch { }
+    }
+
+    public void Reset()
+    {
+        lock (_lockObject)
+        {
+            _totalUsage = TimeSpan.Zero;
+            _bonusTime = TimeSpan.Zero;
+            _appUsage.Clear();
+        }
+        SaveAllData();
+    }
+
+    public TimeSpan GetDailyLimit()
+    {
+        return _settingsManager.GetDailyLimit();
+    }
+
+    private void CheckAndApplyExitPenalty()
+    {
+        try
+        {
+            string? usageContent = SafeReadFile(_usageFilePath);
+            if (string.IsNullOrEmpty(usageContent))
+            {
+                return;
+            }
+
+            string[] usageData = usageContent.Split('|');
+            if (usageData.Length < 2)
+            {
+                return;
+            }
+
+            if (!DateTime.TryParseExact(usageData[0], "yyyy-MM-dd", null, DateTimeStyles.None, out DateTime usageDate))
+            {
+                return;
+            }
+
+            if (usageDate.Date != DateTime.Today)
+            {
+                return;
+            }
+
+            bool wasCleanExit = false;
+            string? exitContent = SafeReadFile(_cleanExitFilePath);
+            if (!string.IsNullOrEmpty(exitContent) && exitContent.StartsWith(DateTime.Today.ToString("yyyy-MM-dd")))
+            {
+                wasCleanExit = true;
+            }
+
+            try
+            {
+                if (File.Exists(_cleanExitFilePath))
+                {
+                    File.Delete(_cleanExitFilePath);
+                }
+            }
+            catch { }
+
+            if (!wasCleanExit)
+            {
+                lock (_lockObject)
+                {
+                    _totalUsage += TimeSpan.FromMinutes(1);
+                }
+                _needsSave = true;
+            }
+        }
+        catch { }
+    }
+
+    public void MarkCleanExit()
+    {
+        try
+        {
+            string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+            if (!Directory.Exists(commonDataDir))
+            {
+                Directory.CreateDirectory(commonDataDir);
+            }
+            SafeWriteFile(_cleanExitFilePath, DateTime.Today.ToString("yyyy-MM-dd"));
+        }
+        catch { }
+    }
+
+    public void Dispose()
+    {
+        if (!_isDisposed)
+        {
             _isDisposed = true;
-            
-            _midnightTimer?.Stop();
-            _midnightTimer?.Dispose();
+
+            try
+            {
+                _midnightTimer?.Stop();
+                _midnightTimer?.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                _saveTimer?.Stop();
+                _saveTimer?.Dispose();
+            }
+            catch { }
+
+            SaveAllData();
         }
     }
 }

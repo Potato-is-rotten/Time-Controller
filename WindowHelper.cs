@@ -2,124 +2,115 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace ScreenTimeController
+namespace ScreenTimeController;
+
+public static class WindowHelper
 {
-    public static class WindowHelper
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    public static extern void LockWorkStation();
+
+    public static string? GetActiveWindowProcessName()
     {
-        [DllImport("user32.dll")]
-        private static extern IntPtr GetForegroundWindow();
-
-        [DllImport("user32.dll")]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-        [DllImport("user32.dll")]
-        public static extern void LockWorkStation();
-
-        public static string GetActiveWindowProcessName()
+        try
         {
-            try
-            {
-                var hWnd = GetForegroundWindow();
-                if (hWnd == IntPtr.Zero)
-                    return null;
-
-                GetWindowThreadProcessId(hWnd, out uint processId);
-                using (var process = Process.GetProcessById((int)processId))
-                {
-                    return process.ProcessName;
-                }
-            }
-            catch
+            IntPtr foregroundWindow = GetForegroundWindow();
+            if (foregroundWindow == IntPtr.Zero)
             {
                 return null;
             }
+            GetWindowThreadProcessId(foregroundWindow, out uint lpdwProcessId);
+            using Process process = Process.GetProcessById((int)lpdwProcessId);
+            return process.ProcessName;
         }
-
-        public static bool ProcessHasWindow(string processName)
+        catch
         {
-            if (string.IsNullOrEmpty(processName))
-                return false;
+            return null;
+        }
+    }
 
-            Process[] processes = null;
-            try
+    public static bool ProcessHasWindow(string processName)
+    {
+        if (string.IsNullOrEmpty(processName))
+        {
+            return false;
+        }
+        Process[]? array = null;
+        try
+        {
+            array = Process.GetProcessesByName(processName);
+            foreach (Process process in array)
             {
-                processes = Process.GetProcessesByName(processName);
-                foreach (var process in processes)
+                try
+                {
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        return true;
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (array != null)
+            {
+                foreach (Process process in array)
                 {
                     try
                     {
-                        if (process.MainWindowHandle != IntPtr.Zero)
-                        {
-                            return true;
-                        }
+                        process.Dispose();
                     }
-                    catch
-                    {
-                    }
-                }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-            finally
-            {
-                if (processes != null)
-                {
-                    foreach (var p in processes)
-                    {
-                        try
-                        {
-                            p.Dispose();
-                        }
-                        catch
-                        {
-                        }
-                    }
+                    catch { }
                 }
             }
         }
+    }
 
-        public static bool HasOpenWindows()
+    public static bool HasOpenWindows()
+    {
+        Process[]? array = null;
+        try
         {
-            Process[] processes = null;
-            try
+            array = Process.GetProcesses();
+            foreach (Process process in array)
             {
-                processes = Process.GetProcesses();
-                foreach (var process in processes)
+                try
+                {
+                    if (process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        return true;
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            if (array != null)
+            {
+                foreach (Process process in array)
                 {
                     try
                     {
-                        if (process.MainWindowHandle != IntPtr.Zero)
-                        {
-                            return true;
-                        }
+                        process.Dispose();
                     }
-                    catch
-                    {
-                    }
-                }
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-            finally
-            {
-                if (processes != null)
-                {
-                    foreach (var p in processes)
-                    {
-                        try
-                        {
-                            p.Dispose();
-                        }
-                        catch
-                        {
-                        }
-                    }
+                    catch { }
                 }
             }
         }
