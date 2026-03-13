@@ -2,6 +2,10 @@
 
 English | [简体中文](README.md)
 
+# Safety
+
+<img width="1420" height="2234" alt="Screenshot_2026-03-13_10-12-26" src="https://github.com/user-attachments/assets/62e026fc-caa6-4689-8eed-9aeafc994749" />
+
 A Windows 11 screen time management application that helps you control and manage your screen usage time.
 
 ## Features
@@ -144,3 +148,4 @@ Apache-2.0 License
 - Abnormal exit detection and penalty mechanism
 - Use CommonApplicationData for data storage, supports cross-account access
 - Scheduled task management ensures daemon runs in user session
+
