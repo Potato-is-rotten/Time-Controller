@@ -2,6 +2,10 @@
 
 [English](README%20eng.md) | 简体中文
 
+# 安全
+
+<img width="1420" height="2234" alt="Screenshot_2026-03-13_10-12-26" src="https://github.com/user-attachments/assets/30f2834f-1db9-4b9b-a0f9-7d1c9813f44d" />
+
 Windows 11 屏幕时间管控器应用程序，帮助您控制和管理屏幕使用时间。
 
 ## 功能特性
@@ -169,3 +173,4 @@ Apache-2.0 License
 - 异常退出检测和惩罚机制
 - 使用CommonApplicationData存储数据，支持跨账户访问
 - 计划任务管理，确保守护进程在用户会话中运行
+
