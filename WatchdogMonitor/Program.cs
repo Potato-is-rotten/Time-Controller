@@ -81,7 +81,7 @@ namespace WatchdogMonitor
             {
                 try
                 {
-                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
+                    string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
                     if (!Directory.Exists(logDir))
                     {
                         Directory.CreateDirectory(logDir);
@@ -294,13 +294,13 @@ namespace WatchdogMonitor
         {
             try
             {
-                string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
-                if (!Directory.Exists(logDir))
+                string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+                if (!Directory.Exists(commonDataDir))
                 {
-                    Directory.CreateDirectory(logDir);
+                    Directory.CreateDirectory(commonDataDir);
                 }
 
-                string abnormalExitFile = Path.Combine(logDir, "abnormal_exits.txt");
+                string abnormalExitFile = Path.Combine(commonDataDir, "abnormal_exits.txt");
                 string today = DateTime.Today.ToString("yyyy-MM-dd");
                 int count = 0;
 
@@ -341,7 +341,7 @@ namespace WatchdogMonitor
         {
             try
             {
-                string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
+                string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
                 if (!Directory.Exists(logDir))
                 {
                     Directory.CreateDirectory(logDir);

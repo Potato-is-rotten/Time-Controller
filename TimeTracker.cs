@@ -53,7 +53,7 @@ public class TimeTracker : IDisposable
         _settingsManager = settingsManager;
         _appUsage = new Dictionary<string, TimeSpan>();
         _bonusTime = TimeSpan.Zero;
-        _dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
+        _dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
         _usageFilePath = Path.Combine(_dataDirectory, "usage.txt");
         _appUsageFilePath = Path.Combine(_dataDirectory, "app_usage.txt");
         _backupFilePath = Path.Combine(_dataDirectory, "usage_backup.txt");
@@ -374,60 +374,67 @@ public class TimeTracker : IDisposable
 
     private void SaveAllData()
     {
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            SaveUsageData();
-            SaveAppUsageData();
+            try
+            {
+                SaveUsageData();
+                SaveAppUsageData();
+                return;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveAllData attempt {attempt + 1} failed: {ex.Message}");
+                Thread.Sleep(100);
+            }
         }
-        catch { }
     }
 
     private void SaveUsageData()
     {
-        try
+        string content;
+        lock (_lockObject)
         {
-            string content;
-            lock (_lockObject)
-            {
-                content = string.Format(CultureInfo.InvariantCulture,
-                    "{0:yyyy-MM-dd}|{1}|{2}",
-                    DateTime.Today,
-                    _totalUsage.TotalMinutes,
-                    _bonusTime.TotalMinutes);
-            }
-
-            if (File.Exists(_usageFilePath))
-            {
-                try
-                {
-                    File.Copy(_usageFilePath, _backupFilePath, true);
-                }
-                catch { }
-            }
-
-            SafeWriteFile(_usageFilePath, content);
+            content = string.Format(CultureInfo.InvariantCulture,
+                "{0:yyyy-MM-dd}|{1}|{2}",
+                DateTime.Today,
+                _totalUsage.TotalMinutes,
+                _bonusTime.TotalMinutes);
         }
-        catch { }
+
+        if (File.Exists(_usageFilePath))
+        {
+            try
+            {
+                File.Copy(_usageFilePath, _backupFilePath, true);
+            }
+            catch { }
+        }
+
+        SafeWriteFile(_usageFilePath, content);
+
+        string? verifyContent = SafeReadFile(_usageFilePath);
+        if (verifyContent != content)
+        {
+            throw new IOException("Verification failed for usage data");
+        }
     }
 
     private void SaveAppUsageData()
     {
-        try
+        string content;
+        lock (_lockObject)
         {
             StringBuilder sb = new();
             sb.AppendLine(DateTime.Today.ToString("yyyy-MM-dd"));
-
-            lock (_lockObject)
+            foreach (var kvp in _appUsage)
             {
-                foreach (var kvp in _appUsage)
-                {
-                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}|{1}", kvp.Key, kvp.Value.TotalMinutes));
-                }
+                sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}|{1}", kvp.Key, kvp.Value.TotalMinutes));
             }
-
-            SafeWriteFile(_appUsageFilePath, sb.ToString());
+            content = sb.ToString();
         }
-        catch { }
+
+        SafeWriteFile(_appUsageFilePath, content);
     }
 
     public void Reset()
@@ -502,16 +509,30 @@ public class TimeTracker : IDisposable
 
     public void MarkCleanExit()
     {
-        try
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
-            if (!Directory.Exists(commonDataDir))
+            try
             {
-                Directory.CreateDirectory(commonDataDir);
+                string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+                if (!Directory.Exists(commonDataDir))
+                {
+                    Directory.CreateDirectory(commonDataDir);
+                }
+                
+                string content = DateTime.Today.ToString("yyyy-MM-dd");
+                SafeWriteFile(_cleanExitFilePath, content);
+                
+                string? verify = SafeReadFile(_cleanExitFilePath);
+                if (verify?.Trim() == content)
+                {
+                    return;
+                }
             }
-            SafeWriteFile(_cleanExitFilePath, DateTime.Today.ToString("yyyy-MM-dd"));
+            catch
+            {
+                Thread.Sleep(100);
+            }
         }
-        catch { }
     }
 
     public void Dispose()

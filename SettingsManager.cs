@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace ScreenTimeController;
 
@@ -90,8 +91,8 @@ public class SettingsManager
 
     public SettingsManager()
     {
-        _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "settings.txt");
-        _backupFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "settings_backup.txt");
+        _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings.txt");
+        _backupFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings_backup.txt");
         EnsureDirectory();
         LoadSettings();
     }
@@ -137,22 +138,39 @@ public class SettingsManager
 
     private void SafeWriteFile(string filePath, string content)
     {
-        string tempFile = filePath + ".tmp";
-        for (int i = 0; i < 5; i++)
+        string? directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            try { Directory.CreateDirectory(directory); } catch { }
+        }
+
+        for (int attempt = 0; attempt < 5; attempt++)
         {
             try
             {
+                string tempFile = filePath + ".tmp";
                 File.WriteAllText(tempFile, content, Encoding.UTF8);
+                
                 if (File.Exists(filePath))
                 {
                     File.Delete(filePath);
                 }
+                
                 File.Move(tempFile, filePath);
-                return;
+                
+                string verify = File.ReadAllText(filePath, Encoding.UTF8);
+                if (verify == content)
+                {
+                    return;
+                }
             }
             catch (IOException)
             {
-                System.Threading.Thread.Sleep(50);
+                Thread.Sleep(50);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Thread.Sleep(50);
             }
             catch
             {
