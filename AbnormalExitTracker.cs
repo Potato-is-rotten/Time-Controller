@@ -6,7 +6,7 @@ namespace ScreenTimeController;
 public static class AbnormalExitTracker
 {
     private static readonly string AbnormalExitFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
         "ScreenTimeController",
         "abnormal_exits.txt");
 
@@ -48,6 +48,12 @@ public static class AbnormalExitTracker
     {
         try
         {
+            string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+            if (!Directory.Exists(commonDataDir))
+            {
+                Directory.CreateDirectory(commonDataDir);
+            }
+
             string today = DateTime.Today.ToString("yyyy-MM-dd");
             File.WriteAllLines(AbnormalExitFilePath, new string[] { today, "0" });
         }

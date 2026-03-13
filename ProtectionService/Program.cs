@@ -50,7 +50,7 @@ namespace ProtectionService
             string? currentDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             _watchdogPath = Path.Combine(currentDir ?? "", "WatchdogMonitor.exe");
             _mainExePath = Path.Combine(currentDir ?? "", "ScreenTimeController.exe");
-            _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController", "protection_service.log");
+            _logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "protection_service.log");
         }
 
         private void StartWorker()
@@ -72,6 +72,8 @@ namespace ProtectionService
 
         private void WorkerLoop()
         {
+            Thread.Sleep(5000);
+            
             while (_isRunning)
             {
                 try
@@ -161,8 +163,8 @@ namespace ProtectionService
                 Process[] processes = Process.GetProcessesByName(WatchdogProcessName);
                 if (processes.Length == 0)
                 {
-                    Log("WatchdogMonitor not running. Starting...");
-                    StartProcess(_watchdogPath);
+                    Log("WatchdogMonitor not running. Triggering scheduled task to start in user session...");
+                    TriggerScheduledTask();
                 }
                 else
                 {
@@ -213,18 +215,8 @@ namespace ProtectionService
 
                     if (shouldRestart)
                     {
-                        try
-                        {
-                            if (File.Exists(cleanExitFile))
-                            {
-                                File.Delete(cleanExitFile);
-                            }
-                        }
-                        catch { }
-
-                        Log("Main program not running and no clean exit. Starting...");
-                        RecordServiceRestart();
-                        StartProcess(_mainExePath);
+                        Log("Main program not running and no clean exit. Triggering watchdog restart...");
+                        TriggerWatchdogRestart();
                     }
                 }
                 else
@@ -241,21 +233,64 @@ namespace ProtectionService
             }
         }
 
-        private static void RecordServiceRestart()
+        private void TriggerWatchdogRestart()
         {
             try
             {
-                string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ScreenTimeController");
-                if (!Directory.Exists(logDir))
+                Process[] watchdogProcesses = Process.GetProcessesByName(WatchdogProcessName);
+                if (watchdogProcesses.Length == 0)
                 {
-                    Directory.CreateDirectory(logDir);
+                    Log("WatchdogMonitor not running. Triggering scheduled task to start in user session...");
+                    TriggerScheduledTask();
+                }
+                else
+                {
+                    Log("WatchdogMonitor already running. It will handle restart.");
+                    foreach (Process p in watchdogProcesses)
+                    {
+                        p.Dispose();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error triggering watchdog restart: {ex.Message}");
+            }
+        }
+
+        private static void TriggerScheduledTask()
+        {
+            try
+            {
+                using TaskService taskService = new();
+                Task? task = taskService.FindTask(TaskName);
+                if (task != null)
+                {
+                    task.Run();
+                    Log($"Triggered scheduled task: {TaskName}");
+                }
+                else
+                {
+                    Log("Scheduled task not found. Cannot trigger watchdog.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"Error triggering scheduled task: {ex.Message}");
+            }
+        }
+
+        private static void RecordAbnormalExit()
+        {
+            try
+            {
+                string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+                if (!Directory.Exists(commonDataDir))
+                {
+                    Directory.CreateDirectory(commonDataDir);
                 }
 
-                string serviceRestartFile = Path.Combine(logDir, "service_restart.txt");
-                string content = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-                File.WriteAllText(serviceRestartFile, content);
-
-                string abnormalExitFile = Path.Combine(logDir, "abnormal_exits.txt");
+                string abnormalExitFile = Path.Combine(commonDataDir, "abnormal_exits.txt");
                 string today = DateTime.Today.ToString("yyyy-MM-dd");
                 int count = 0;
 
@@ -273,6 +308,14 @@ namespace ProtectionService
                             count = 1;
                         }
                     }
+                    else
+                    {
+                        count = 1;
+                    }
+                }
+                else
+                {
+                    count = 1;
                 }
 
                 File.WriteAllLines(abnormalExitFile, new string[] { today, count.ToString() });
@@ -280,7 +323,7 @@ namespace ProtectionService
             }
             catch (Exception ex)
             {
-                Log($"Error recording service restart: {ex.Message}");
+                Log($"Error recording abnormal exit: {ex.Message}");
             }
         }
 
@@ -450,8 +493,8 @@ namespace ProtectionService
                     Process[] watchdogProcesses = Process.GetProcessesByName(WatchdogProcessName);
                     if (watchdogProcesses.Length == 0)
                     {
-                        Log("WatchdogMonitor not running. Starting...");
-                        StartProcess(_watchdogPath);
+                        Log("WatchdogMonitor not running. Triggering scheduled task...");
+                        TriggerScheduledTask();
                     }
                     foreach (var p in watchdogProcesses) p.Dispose();
 
@@ -485,17 +528,7 @@ namespace ProtectionService
 
                         if (shouldRestart)
                         {
-                            try
-                            {
-                                if (File.Exists(cleanExitFile))
-                                {
-                                    File.Delete(cleanExitFile);
-                                }
-                            }
-                            catch { }
-
-                            Log("Main program not running and no clean exit (native mode). Starting...");
-                            StartProcess(_mainExePath);
+                            Log("Main program not running and no clean exit (native mode). Triggering watchdog restart...");
                         }
                     }
                     foreach (var p in mainProcesses) p.Dispose();
@@ -611,8 +644,8 @@ namespace ProtectionService
                         Process[] watchdogProcesses = Process.GetProcessesByName(WatchdogProcessName);
                         if (watchdogProcesses.Length == 0)
                         {
-                            Log("WatchdogMonitor not running. Starting...");
-                            StartProcess(_watchdogPath);
+                            Log("WatchdogMonitor not running. Triggering scheduled task...");
+                            TriggerScheduledTask();
                         }
                         foreach (var p in watchdogProcesses) p.Dispose();
 
@@ -646,17 +679,7 @@ namespace ProtectionService
 
                             if (shouldRestart)
                             {
-                                try
-                                {
-                                    if (File.Exists(cleanExitFile))
-                                    {
-                                        File.Delete(cleanExitFile);
-                                    }
-                                }
-                                catch { }
-
-                                Log("Main program not running and no clean exit (console mode). Starting...");
-                                StartProcess(_mainExePath);
+                                Log("Main program not running and no clean exit (console mode). Triggering watchdog restart...");
                             }
                         }
                         foreach (var p in mainProcesses) p.Dispose();
