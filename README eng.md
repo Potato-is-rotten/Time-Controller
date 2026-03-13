@@ -133,25 +133,14 @@ Apache-2.0 License
 
 ## Changelog
 
-### v1.2.0
-- Use TabControl to separate Overview and Applications interface
-- Add application icon display feature
-- Implement icon caching mechanism
-- Only track windowed applications
-- Add single instance detection
-- Fix multiple potential bugs and resource leaks
-- Optimize UI layout and font sizes
-- Improve thread safety
-
-### v1.1.0
-- Add app-level time tracking feature
-- Today's usage time not reset after settings change
-- Optimize system tray notifications
-- Add password protection feature
-
 ### v1.0.0
-- Initial version
+- Initial official release
 - Implement basic screen time control features
 - Add system tray integration
 - Support different time limits for each day
 - Add 5-minute warning notification
+- Windows service for continuous timing, runs even when GUI is closed
+- Process guardian (WatchdogMonitor) prevents program from being forcibly closed
+- Abnormal exit detection and penalty mechanism
+- Use CommonApplicationData for data storage, supports cross-account access
+- Scheduled task management ensures daemon runs in user session
