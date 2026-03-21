@@ -23,6 +23,8 @@ A Windows 11 screen time management application that helps you control and manag
 - **Process Guardian**: Watchdog daemon prevents program from being forcibly closed
 - **Windows Service**: Background service continues timing, runs even when GUI is closed
 - **Enhanced Security**: DPAPI encryption, registry backup, file monitoring and more
+- **Password Lockout**: Auto lock after 5 failed password attempts until next day 00:00 (toggleable)
+- **Data Integrity Protection**: SHA256 hash verification, tamper detection and auto-recovery
 
 ## System Requirements
 
@@ -33,10 +35,9 @@ A Windows 11 screen time management application that helps you control and manag
 ## Installation and Running
 
 ### Direct Run
-1. Copy the `ScreenTimeController` folder to the target location
-2. Double-click `ScreenTimeController.exe` to run the application
-3. Ensure `Resources\AppIcon.ico` file exists
-4. Ensure `ScreenTimeControllerWatchdog.exe` and its dependency files exist
+1. Extract `ScreenTimeController-win-x64.zip` to target location
+2. Right-click `setup_protection.bat` and select "Run as administrator"
+3. Or double-click `ScreenTimeController.exe` to run directly
 
 ### Build from Source
 1. Clone or download the project code
@@ -72,6 +73,11 @@ A Windows 11 screen time management application that helps you control and manag
 - Time limits in hours and minutes
 - Support setting, modifying or removing password protection
 
+### Password Lockout Feature
+- After 5 incorrect password attempts, account will be locked until next day 00:00
+- Can be enabled/disabled in settings
+- Correct password will reset the failed attempt counter
+
 ## Process Guardian (Watchdog)
 
 Screen Time Controller includes a Watchdog daemon to protect the main program from being forcibly closed:
@@ -82,36 +88,62 @@ Screen Time Controller includes a Watchdog daemon to protect the main program fr
 - **Single Instance Limit**: Watchdog can only run one instance
 - **Quick Response**: 500ms detection interval, quick response to process termination
 
+### File Description
+- `ScreenTimeController.exe` - Main program
+- `ProtectionService.exe` - Windows service program
+- `WatchdogMonitor.exe` - Watchdog daemon
+- `setup_protection.bat` - Install/uninstall script
+- `*.runtimeconfig.json` - Runtime configuration files
+
+### Log Files
+- `%ProgramData%\ScreenTimeController\watchdog.log` - Main program monitoring log
+- `%ProgramData%\ScreenTimeController\protection_service.log` - Service log
+
 ## Technical Implementation
 
 ### Core Components
 - **MainForm**: Main application window, uses TabControl to separate overview and app list
 - **SettingsForm**: Settings window for configuring daily time limits and password
-- **PasswordForm**: Password input window for user authentication
+- **PasswordForm**: Password input window for user authentication, includes password lockout logic
 - **ChangePasswordForm**: Password change window
 - **TimeTracker**: Time tracker, records screen usage time and app-level usage time
 - **SettingsManager**: Settings manager, saves and loads application settings
+- **DataProtectionManager**: Data protection manager, multi-location storage and integrity verification
+- **LoginAttemptManager**: Login attempt manager, password lockout functionality
 - **WindowHelper**: Windows API wrapper for getting window info and locking screen
 - **Watchdog**: Daemon manager, starts and monitors Watchdog process
 
 ### Data Storage
-- Settings saved in `%AppData%\ScreenTimeController\settings.txt`
-- Total time usage saved in `%AppData%\ScreenTimeController\usage.txt`
-- App-level time usage saved in `%AppData%\ScreenTimeController\app_usage.txt`
-- Password encrypted with PBKDF2 + random salt
+- Settings saved in `%ProgramData%\ScreenTimeController\settings.txt`
+- Total time usage saved in `%ProgramData%\ScreenTimeController\usage.txt`
+- App-level time usage saved in `%ProgramData%\ScreenTimeController\app_usage.txt`
+- Password encrypted with SHA256
+- Login attempt records stored in registry and file (dual backup)
 
 ### Security Features
-- **Password Security**: PBKDF2 with 100,000 iterations, random salt
-- **Account Lockout**: 5 failed attempts = 15 minute lockout
-- **IPC Security**: Authentication token for all IPC commands
-- **Data Protection**: Windows DPAPI encryption, registry backup
-- **File Monitoring**: Real-time detection of file tampering
+- **Password Security**: SHA256 encryption storage
+- **Account Lockout**: 5 failed password attempts lock until next day 00:00 (toggleable)
+- **Data Protection**: Multi-location storage (main+backup+registry), SHA256 hash verification
+- **Directory Permissions**: Config directory only accessible by Admin and SYSTEM
+- **Uninstall Cleanup**: Clean all data directories and registry on uninstall
+
+### Key Technologies
+- Windows Forms application development
+- Windows API integration (user32.dll)
+- Time tracking and management
+- System tray integration (NotifyIcon)
+- Single instance detection (Mutex)
+- Process guardian and mutual monitoring
+- Icon caching mechanism
+- Thread-safe design
+- SHA256 hash verification
+- Windows ACL permission management
 
 ## Troubleshooting
 
 ### Application Won't Start
 1. Ensure application files are complete
-2. Check application permissions
+2. Check application permissions (recommended to run as administrator)
 3. Ensure .NET 5.0 or higher runtime is installed
 4. Check error messages in Windows Event Viewer
 
@@ -122,20 +154,43 @@ Screen Time Controller includes a Watchdog daemon to protect the main program fr
 
 ### Forgot Password
 1. Close application
-2. Delete `%AppData%\ScreenTimeController\settings.txt` file
+2. Delete `%ProgramData%\ScreenTimeController\settings.txt` file
 3. Restart application and set new password
 
 ### Reset Usage Time Data
 1. Close application
-2. Delete `%AppData%\ScreenTimeController\usage.txt` file
-3. Delete `%AppData%\ScreenTimeController\app_usage.txt` file
+2. Delete `%ProgramData%\ScreenTimeController\usage.txt` file
+3. Delete `%ProgramData%\ScreenTimeController\app_usage.txt` file
 4. Restart application
+
+### App Icons Not Displaying
+1. Check if icon files are corrupted
+2. Application will use system default icon as fallback
+
+### Watchdog Not Working
+1. Ensure all dependency files exist
+2. Check log files
+3. Ensure no multiple Watchdog instances are running
+
+### Uninstall Cleanup
+1. Right-click `setup_protection.bat` and select "Run as administrator"
+2. Select uninstall option
+3. Script will clean all data directories, registry entries and scheduled tasks
 
 ## License
 
 Apache-2.0 License
 
 ## Changelog
+
+### v1.0.1
+- **New**: Data protection - multi-location storage, SHA256 hash verification, tamper detection auto-recovery
+- **New**: Password lockout - lock after 5 failed attempts until next day 00:00 (toggleable in settings)
+- **New**: Config directory permissions - Admin and SYSTEM only access
+- **Improved**: Exit speed - removed retry mechanism for faster exit
+- **Improved**: Data integrity - File.Replace atomic operation prevents data loss
+- **Fixed**: UI font styles - table headers bold, content regular
+- **Fixed**: Uninstall cleanup - clean all data directories and registry
 
 ### v1.0.0
 - Initial official release
@@ -148,4 +203,3 @@ Apache-2.0 License
 - Abnormal exit detection and penalty mechanism
 - Use CommonApplicationData for data storage, supports cross-account access
 - Scheduled task management ensures daemon runs in user session
-
