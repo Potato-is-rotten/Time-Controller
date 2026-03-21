@@ -137,6 +137,13 @@ public static class LanguageManager
             "UninstallService" => "Uninstall Service",
             "RefreshStatus" => "Refresh Status",
             "ProtectionDescription" => "This tab shows the protection system status. The service monitors and restarts the main program if it exits unexpectedly.",
+            "PasswordLock" => "Password Lock",
+            "EnablePasswordLock" => "Enable password lock (lock until next day after 5 failed attempts)",
+            "LockedUntil" => "Locked until {0}",
+            "FailedAttempts" => "Failed attempts: {0}/5",
+            "AccountLocked" => "Account is locked. Please try again tomorrow.",
+            "AccountLockedUntilTomorrow" => "Too many failed attempts. Account locked until tomorrow.",
+            "PasswordIncorrect" => "Password is incorrect.",
             _ => key,
         };
     }
@@ -222,6 +229,13 @@ public static class LanguageManager
             "UninstallService" => "卸载服务",
             "RefreshStatus" => "刷新状态",
             "ProtectionDescription" => "此标签页显示保护系统状态。服务会监控并在主程序异常退出时重启它。",
+            "PasswordLock" => "密码锁定",
+            "EnablePasswordLock" => "启用密码锁定（5次错误后锁定至次日）",
+            "LockedUntil" => "已锁定至 {0}",
+            "FailedAttempts" => "失败次数：{0}/5",
+            "AccountLocked" => "账户已锁定，请明天再试。",
+            "AccountLockedUntilTomorrow" => "错误次数过多，账户已锁定至次日。",
+            "PasswordIncorrect" => "密码错误。",
             _ => key,
         };
     }
@@ -307,6 +321,8 @@ public static class LanguageManager
             "UninstallService" => "解除安裝服務",
             "RefreshStatus" => "重新整理狀態",
             "ProtectionDescription" => "此標籤頁顯示保護系統狀態。服務會監控並在主程式異常退出時重新啟動它。",
+            "PasswordLock" => "密碼鎖定",
+            "EnablePasswordLock" => "啟用密碼鎖定（5次錯誤後鎖定至次日）",
             _ => key,
         };
     }
@@ -392,6 +408,8 @@ public static class LanguageManager
             "UninstallService" => "サービスをアンインストール",
             "RefreshStatus" => "状態を更新",
             "ProtectionDescription" => "このタブは保護システムの状態を表示します。サービスはメインプログラムを監視し、異常終了時に再起動します。",
+            "PasswordLock" => "パスワードロック",
+            "EnablePasswordLock" => "パスワードロックを有効化（5回失敗で翌日までロック）",
             _ => key,
         };
     }
@@ -477,6 +495,8 @@ public static class LanguageManager
             "UninstallService" => "서비스 제거",
             "RefreshStatus" => "상태 새로고침",
             "ProtectionDescription" => "이 탭은 보호 시스템 상태를 표시합니다. 서비스는 메인 프로그램을 모니터링하고 비정상 종료 시 재시작합니다.",
+            "PasswordLock" => "비밀번호 잠금",
+            "EnablePasswordLock" => "비밀번호 잠금 활성화 (5회 실패 시 다음날까지 잠금)",
             _ => key,
         };
     }

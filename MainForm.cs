@@ -751,6 +751,18 @@ public class MainForm : Form
         UpdateProtectionStatus();
     }
 
+    private void ListBoxAppUsage_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+    {
+        e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(240, 240, 240)), e.Bounds);
+        using Font headerFont = new Font("Segoe UI", 11f, FontStyle.Bold);
+        using StringFormat sf = new StringFormat()
+        {
+            Alignment = StringAlignment.Near,
+            LineAlignment = StringAlignment.Center
+        };
+        e.Graphics.DrawString(e.Header?.Text ?? "", headerFont, Brushes.Black, e.Bounds, sf);
+    }
+
     private void CleanupResources()
     {
         _isDisposed = true;
@@ -923,14 +935,18 @@ public class MainForm : Form
         _listBoxAppUsage = new ListView
         {
             Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 12f),
+            Font = new Font("Segoe UI", 10f, FontStyle.Regular),
             View = View.Details,
             FullRowSelect = true,
             HeaderStyle = ColumnHeaderStyle.Nonclickable,
-            GridLines = false
+            GridLines = false,
+            OwnerDraw = true
         };
         _listBoxAppUsage.Columns.Add("Application", -2, HorizontalAlignment.Left);
         _listBoxAppUsage.Columns.Add("Time", -2, HorizontalAlignment.Left);
+        _listBoxAppUsage.DrawColumnHeader += ListBoxAppUsage_DrawColumnHeader;
+        _listBoxAppUsage.DrawItem += (s, e) => { };
+        _listBoxAppUsage.DrawSubItem += (s, e) => e.DrawDefault = true;
         tableLayoutPanel2.Controls.Add(_listBoxAppUsage, 0, 1);
         _tabApps.Controls.Add(tableLayoutPanel2);
         _tabControl.TabPages.Add(_tabApps);
