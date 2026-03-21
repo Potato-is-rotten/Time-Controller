@@ -751,6 +751,18 @@ public class MainForm : Form
         UpdateProtectionStatus();
     }
 
+    private void ListBoxAppUsage_DrawColumnHeader(object? sender, DrawListViewColumnHeaderEventArgs e)
+    {
+        e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(240, 240, 240)), e.Bounds);
+        using Font headerFont = new Font("Segoe UI", 11f, FontStyle.Bold);
+        using StringFormat sf = new StringFormat()
+        {
+            Alignment = StringAlignment.Near,
+            LineAlignment = StringAlignment.Center
+        };
+        e.Graphics.DrawString(e.Header?.Text ?? "", headerFont, Brushes.Black, e.Bounds, sf);
+    }
+
     private void CleanupResources()
     {
         _isDisposed = true;

@@ -101,7 +101,7 @@ public static class DataProtectionManager
             using RegistryKey? key = Registry.LocalMachine.OpenSubKey(BackupRegistryKey);
             if (key != null)
             {
-                return (int)(key.GetValue("TamperingCount", 1) ?? 1);
+                return (int)(key.GetValue("TamperingCount", 0) ?? 0);
             }
         }
         catch { }
@@ -115,7 +115,7 @@ public static class DataProtectionManager
             using RegistryKey? key = Registry.LocalMachine.CreateSubKey(BackupRegistryKey, true);
             if (key != null)
             {
-                key.SetValue("TamperingCount", 1);
+                key.SetValue("TamperingCount", 0);
             }
         }
         catch { }
@@ -185,9 +185,9 @@ public static class DataProtectionManager
         {
             using RegistryKey? key = Registry.LocalMachine.OpenSubKey(BackupRegistryKey);
             if (key != null)
-        {
+            {
                 byte[]? data = key.GetValue(fileName) as byte[];
-                if (data != null && data.Length > 1)
+                if (data != null && data.Length > 0)
                 {
                     return Decompress(data);
                 }
@@ -221,7 +221,7 @@ public static class DataProtectionManager
 
     private static string? SafeReadFile(string filePath)
     {
-        for (int attempt = 1; attempt < 5; attempt++)
+        for (int attempt = 0; attempt < 5; attempt++)
         {
             try
             {
@@ -254,11 +254,21 @@ public static class DataProtectionManager
             try
             {
                 Directory.CreateDirectory(directory);
+                
+                if (directory.Contains(".backup"))
+                {
+                    try
+                    {
+                        DirectoryInfo dirInfo = new DirectoryInfo(directory);
+                        dirInfo.Attributes |= FileAttributes.Hidden;
+                    }
+                    catch { }
+                }
             }
             catch { }
         }
 
-        for (int attempt = 1; attempt < 5; attempt++)
+        for (int attempt = 0; attempt < 5; attempt++)
         {
             try
             {

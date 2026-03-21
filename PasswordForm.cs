@@ -8,11 +8,12 @@ namespace ScreenTimeController;
 public class PasswordForm : Form
 {
     private readonly SettingsManager _settingsManager;
+    private readonly LoginAttemptManager _loginAttemptManager;
     private Label? _labelPassword;
     private TextBox? _textBoxPassword;
     private Button? _buttonOK;
     private Button? _buttonCancel;
-    private int _attemptsLeft;
+    private Label? _labelLockStatus;
     private bool _isClosing;
     private IContainer? components;
 
@@ -23,10 +24,46 @@ public class PasswordForm : Form
         _isClosing = false;
         InitializeComponent();
         _settingsManager = settingsManager;
-        _attemptsLeft = 3;
+        _loginAttemptManager = new LoginAttemptManager();
         IsPasswordCorrect = false;
+        CheckLockStatus();
         ApplyLanguage();
         LanguageManager.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void CheckLockStatus()
+    {
+        if (!_settingsManager.EnablePasswordLock)
+        {
+            _labelLockStatus!.Visible = false;
+            return;
+        }
+        
+        if (_loginAttemptManager.IsLocked)
+        {
+            TimeSpan? remaining = _loginAttemptManager.GetRemainingLockTime();
+            if (remaining.HasValue)
+            {
+                _labelLockStatus!.Text = string.Format(LanguageManager.GetString("LockedUntil"), 
+                    DateTime.Today.AddDays(1).ToString("HH:mm"));
+                _labelLockStatus.Visible = true;
+                _textBoxPassword!.Enabled = false;
+                _buttonOK!.Enabled = false;
+            }
+        }
+        else
+        {
+            int attempts = _loginAttemptManager.FailedAttempts;
+            if (attempts > 0)
+            {
+                _labelLockStatus!.Text = string.Format(LanguageManager.GetString("FailedAttempts"), attempts);
+                _labelLockStatus.Visible = true;
+            }
+            else
+            {
+                _labelLockStatus!.Visible = false;
+            }
+        }
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
@@ -40,6 +77,7 @@ public class PasswordForm : Form
         _labelPassword!.Text = LanguageManager.GetString("Password");
         _buttonOK!.Text = LanguageManager.GetString("OK");
         _buttonCancel!.Text = LanguageManager.GetString("Cancel");
+        CheckLockStatus();
     }
 
     private void OnOKClick(object? sender, EventArgs e)
@@ -48,30 +86,60 @@ public class PasswordForm : Form
         {
             return;
         }
+        
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(LanguageManager.GetString("AccountLocked"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
+            return;
+        }
+        
         if (_settingsManager.VerifyPassword(_textBoxPassword!.Text))
         {
             IsPasswordCorrect = true;
+            _loginAttemptManager.ResetAttempts();
             _isClosing = true;
             LanguageManager.LanguageChanged -= OnLanguageChanged;
             DialogResult = DialogResult.OK;
             Close();
             return;
         }
-        _attemptsLeft--;
-        if (_attemptsLeft > 0)
+        
+        if (_settingsManager.EnablePasswordLock)
         {
-            MessageBox.Show(string.Format(LanguageManager.GetString("IncorrectPassword"), _attemptsLeft), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
-            _textBoxPassword.Clear();
-            _textBoxPassword.Focus();
+            _loginAttemptManager.RecordFailedAttempt();
+            
+            if (_loginAttemptManager.IsLocked)
+            {
+                MessageBox.Show(LanguageManager.GetString("AccountLockedUntilTomorrow"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                _isClosing = true;
+                LanguageManager.LanguageChanged -= OnLanguageChanged;
+                DialogResult = DialogResult.Cancel;
+                Close();
+                return;
+            }
+            
+            int attemptsLeft = 5 - _loginAttemptManager.FailedAttempts;
+            if (attemptsLeft > 0)
+            {
+                MessageBox.Show(string.Format(LanguageManager.GetString("IncorrectPassword"), attemptsLeft), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
+            }
+            else
+            {
+                MessageBox.Show(LanguageManager.GetString("AccountLockedUntilTomorrow"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                _isClosing = true;
+                LanguageManager.LanguageChanged -= OnLanguageChanged;
+                DialogResult = DialogResult.Cancel;
+                Close();
+            }
         }
         else
         {
-            MessageBox.Show(LanguageManager.GetString("TooManyAttempts"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
-            _isClosing = true;
-            LanguageManager.LanguageChanged -= OnLanguageChanged;
-            DialogResult = DialogResult.Cancel;
-            Close();
+            MessageBox.Show(LanguageManager.GetString("PasswordIncorrect"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
         }
+        
+        _textBoxPassword.Clear();
+        _textBoxPassword.Focus();
+        CheckLockStatus();
     }
 
     private void OnCancelClick(object? sender, EventArgs e)
@@ -117,7 +185,7 @@ public class PasswordForm : Form
     private void InitializeComponent()
     {
         this.components = new System.ComponentModel.Container();
-        ClientSize = new System.Drawing.Size(600, 300);
+        ClientSize = new System.Drawing.Size(600, 350);
         Text = "Enter Password";
         FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
         MaximizeBox = false;
@@ -146,10 +214,21 @@ public class PasswordForm : Form
         };
         Controls.Add(_textBoxPassword);
 
+        _labelLockStatus = new Label
+        {
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            ForeColor = Color.Red,
+            Location = new Point(40, 110),
+            Size = new Size(500, 30),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Visible = false
+        };
+        Controls.Add(_labelLockStatus);
+
         _buttonOK = new Button
         {
             Font = new Font("Segoe UI", 12f),
-            Location = new Point(150, 180),
+            Location = new Point(150, 220),
             Size = new Size(120, 50),
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
@@ -162,7 +241,7 @@ public class PasswordForm : Form
         _buttonCancel = new Button
         {
             Font = new Font("Segoe UI", 12f),
-            Location = new Point(320, 180),
+            Location = new Point(320, 220),
             Size = new Size(120, 50),
             BackColor = Color.FromArgb(200, 200, 200),
             ForeColor = Color.Black,

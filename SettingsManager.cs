@@ -22,6 +22,7 @@ public class SettingsManager
     private int _saturdayLimitMinutes = 120;
     private string _passwordHash = "";
     private Language _language = Language.English;
+    private bool _enablePasswordLock = true;
 
     public TimeSpan SundayLimit
     {
@@ -73,6 +74,12 @@ public class SettingsManager
             lock (_lockObject) { _language = value; }
             LanguageManager.CurrentLanguage = value;
         }
+    }
+
+    public bool EnablePasswordLock
+    {
+        get { lock (_lockObject) { return _enablePasswordLock; } }
+        set { lock (_lockObject) { _enablePasswordLock = value; } }
     }
 
     public TimeSpan GetDailyLimit()
@@ -254,6 +261,12 @@ public class SettingsManager
                             _language = (Language)lang;
                         }
                         break;
+                    case "EnablePasswordLock":
+                        if (bool.TryParse(value, out bool enableLock))
+                        {
+                            _enablePasswordLock = enableLock;
+                        }
+                        break;
                 }
             }
             catch { }
@@ -278,7 +291,8 @@ public class SettingsManager
                 sb.AppendLine($"FridayLimit={_fridayLimitMinutes}");
                 sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
                 sb.AppendLine($"PasswordHash={_passwordHash}");
-                sb.Append($"Language={(int)_language}");
+                sb.AppendLine($"Language={(int)_language}");
+                sb.Append($"EnablePasswordLock={_enablePasswordLock}");
                 content = sb.ToString();
             }
 

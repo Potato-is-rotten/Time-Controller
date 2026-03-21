@@ -56,6 +56,7 @@ public class SettingsForm : Form
 
     private Label? _labelLanguage;
     private ComboBox? _comboBoxLanguage;
+    private CheckBox? _checkBoxEnablePasswordLock;
     private Button? _buttonOK;
     private Button? _buttonCancel;
     private Button? _buttonChangePassword;
@@ -104,6 +105,7 @@ public class SettingsForm : Form
         _labelFridayMinutes!.Text = LanguageManager.GetString("Minutes");
         _labelSaturdayMinutes!.Text = LanguageManager.GetString("Minutes");
         _labelLanguage!.Text = LanguageManager.GetString("Language") + ":";
+        _checkBoxEnablePasswordLock!.Text = LanguageManager.GetString("EnablePasswordLock");
         _buttonOK!.Text = LanguageManager.GetString("OK");
         _buttonCancel!.Text = LanguageManager.GetString("Cancel");
         _buttonApplyToAll!.Text = LanguageManager.GetString("ApplyToAllDays");
@@ -143,6 +145,7 @@ public class SettingsForm : Form
             _comboBoxLanguage.Items.Add(LanguageManager.GetLanguageName(value));
         }
         _comboBoxLanguage.SelectedIndex = (int)_settingsManager.Language;
+        _checkBoxEnablePasswordLock!.Checked = _settingsManager.EnablePasswordLock;
     }
 
     private void LoadDaySetting(TimeSpan limit, NumericUpDown hoursControl, NumericUpDown minutesControl)
@@ -225,6 +228,7 @@ public class SettingsForm : Form
         _settingsManager.FridayLimit = GetTimeFromControls(_numericUpDownFridayHours!, _numericUpDownFridayMinutes!);
         _settingsManager.SaturdayLimit = GetTimeFromControls(_numericUpDownSaturdayHours!, _numericUpDownSaturdayMinutes!);
         _settingsManager.Language = (Language)_comboBoxLanguage!.SelectedIndex;
+        _settingsManager.EnablePasswordLock = _checkBoxEnablePasswordLock!.Checked;
         _settingsManager.SaveSettings();
     }
 
@@ -276,7 +280,7 @@ public class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 5,
-            RowCount = 8,
+            RowCount = 9,
             AutoScroll = true,
             Padding = new Padding(10)
         };
@@ -285,7 +289,7 @@ public class SettingsForm : Form
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 9; i++)
         {
             daysTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 55f));
         }
@@ -315,6 +319,25 @@ public class SettingsForm : Form
         };
         daysTable.SetColumnSpan(_comboBoxLanguage, 4);
         daysTable.Controls.Add(_comboBoxLanguage, 1, 7);
+
+        _checkBoxEnablePasswordLock = new CheckBox
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 11f),
+            Checked = true,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        daysTable.SetColumnSpan(_checkBoxEnablePasswordLock, 4);
+        daysTable.Controls.Add(_checkBoxEnablePasswordLock, 1, 8);
+
+        Label labelPasswordLock = new Label
+        {
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 11f, FontStyle.Bold),
+            TextAlign = ContentAlignment.MiddleLeft,
+            Text = LanguageManager.GetString("PasswordLock") + ":"
+        };
+        daysTable.Controls.Add(labelPasswordLock, 0, 8);
 
         mainTable.Controls.Add(daysTable, 0, 0);
 
