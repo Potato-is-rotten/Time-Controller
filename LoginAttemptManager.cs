@@ -76,9 +76,24 @@ public class LoginAttemptManager
 
     private void LoadAttempts()
     {
+        bool loadedFromHklm = LoadFromRegistry(Registry.LocalMachine);
+        
+        if (!loadedFromHklm)
+        {
+            LoadFromRegistry(Registry.CurrentUser);
+        }
+        
+        if (LockedUntil.HasValue && LockedUntil.Value <= DateTime.Now)
+        {
+            ResetAttempts();
+        }
+    }
+
+    private bool LoadFromRegistry(RegistryKey rootKey)
+    {
         try
         {
-            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(RegistryKey);
+            using RegistryKey? key = rootKey.OpenSubKey(RegistryKey);
             if (key != null)
             {
                 FailedAttempts = (int)(key.GetValue("FailedAttempts", 0) ?? 0);
@@ -87,25 +102,31 @@ public class LoginAttemptManager
                 {
                     LockedUntil = new DateTime(lockTicks.Value);
                 }
-                
-                if (LockedUntil.HasValue && LockedUntil.Value <= DateTime.Now)
-                {
-                    ResetAttempts();
-                }
-                return;
+                return true;
             }
         }
         catch { }
         
-        FailedAttempts = 0;
-        LockedUntil = null;
+        return false;
     }
 
     private void SaveAttempts()
     {
+        bool savedToHklm = SaveToRegistry(Registry.LocalMachine);
+        
+        if (!savedToHklm)
+        {
+            SaveToRegistry(Registry.CurrentUser);
+        }
+        
+        SaveToFile();
+    }
+
+    private bool SaveToRegistry(RegistryKey rootKey)
+    {
         try
         {
-            using RegistryKey? key = Registry.LocalMachine.CreateSubKey(RegistryKey, true);
+            using RegistryKey? key = rootKey.CreateSubKey(RegistryKey, true);
             if (key != null)
             {
                 key.SetValue("FailedAttempts", FailedAttempts);
@@ -116,6 +137,48 @@ public class LoginAttemptManager
                 else
                 {
                     key.SetValue("LockedUntil", 0);
+                }
+                return true;
+            }
+        }
+        catch { }
+        
+        return false;
+    }
+
+    private void SaveToFile()
+    {
+        try
+        {
+            DataProtectionManager.EnsureDirectoryExists();
+            
+            var data = new
+            {
+                FailedAttempts,
+                LockedUntil = LockedUntil?.Ticks ?? 0
+            };
+            
+            string json = JsonSerializer.Serialize(data);
+            File.WriteAllText(AttemptsFilePath, json);
+        }
+        catch { }
+    }
+
+    private void LoadFromFile()
+    {
+        try
+        {
+            if (File.Exists(AttemptsFilePath))
+            {
+                string json = File.ReadAllText(AttemptsFilePath);
+                var data = JsonSerializer.Deserialize<LoginAttemptData>(json);
+                if (data != null)
+                {
+                    FailedAttempts = data.FailedAttempts;
+                    if (data.LockedUntil > 0)
+                    {
+                        LockedUntil = new DateTime(data.LockedUntil);
+                    }
                 }
             }
         }
@@ -132,11 +195,23 @@ public class LoginAttemptManager
         
         try
         {
+            Registry.CurrentUser.DeleteSubKeyTree(RegistryKey, false);
+        }
+        catch { }
+        
+        try
+        {
             if (File.Exists(AttemptsFilePath))
             {
                 File.Delete(AttemptsFilePath);
             }
         }
         catch { }
+    }
+
+    private class LoginAttemptData
+    {
+        public int FailedAttempts { get; set; }
+        public long LockedUntil { get; set; }
     }
 }

@@ -34,6 +34,12 @@ public static class DataProtectionManager
         SaveHash(fileName, content);
     }
 
+    public static void SaveFast(string fileName, string content)
+    {
+        string primaryPath = Path.Combine(DataDirectory, fileName);
+        SafeWriteFile(primaryPath, content);
+    }
+
     public static string? LoadWithProtection(string fileName)
     {
         string primaryPath = Path.Combine(DataDirectory, fileName);
@@ -172,8 +178,8 @@ public static class DataProtectionManager
             using RegistryKey? key = Registry.LocalMachine.CreateSubKey(BackupRegistryKey, true);
             if (key != null)
             {
-                byte[] compressed = Compress(content);
-                key.SetValue(fileName, compressed, RegistryValueKind.Binary);
+                byte[] data = Encoding.UTF8.GetBytes(content);
+                key.SetValue(fileName, data, RegistryValueKind.Binary);
             }
         }
         catch { }
@@ -189,7 +195,7 @@ public static class DataProtectionManager
                 byte[]? data = key.GetValue(fileName) as byte[];
                 if (data != null && data.Length > 0)
                 {
-                    return Decompress(data);
+                    return Encoding.UTF8.GetString(data);
                 }
             }
         }
@@ -208,42 +214,23 @@ public static class DataProtectionManager
         catch { }
     }
 
-    private static byte[] Compress(string content)
-    {
-        byte[] data = Encoding.UTF8.GetBytes(content);
-        return data;
-    }
-
-    private static string Decompress(byte[] data)
-    {
-        return Encoding.UTF8.GetString(data);
-    }
-
     private static string? SafeReadFile(string filePath)
     {
-        for (int attempt = 0; attempt < 5; attempt++)
+        try
         {
-            try
-            {
-                if (!File.Exists(filePath))
-                {
-                    return null;
-                }
-                
-                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var sr = new StreamReader(fs, Encoding.UTF8);
-                return sr.ReadToEnd();
-            }
-            catch (IOException)
-            {
-                System.Threading.Thread.Sleep(50);
-            }
-            catch
+            if (!File.Exists(filePath))
             {
                 return null;
             }
+            
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var sr = new StreamReader(fs, Encoding.UTF8);
+            return sr.ReadToEnd();
         }
-        return null;
+        catch
+        {
+            return null;
+        }
     }
 
     private static void SafeWriteFile(string filePath, string content)
@@ -268,33 +255,40 @@ public static class DataProtectionManager
             catch { }
         }
 
-        for (int attempt = 0; attempt < 5; attempt++)
+        string tempFile = filePath + ".tmp";
+        string backupFile = filePath + ".bak";
+        
+        try
+        {
+            File.WriteAllText(tempFile, content, Encoding.UTF8);
+            
+            if (File.Exists(filePath))
+            {
+                File.Replace(tempFile, filePath, backupFile);
+                try
+                {
+                    if (File.Exists(backupFile))
+                    {
+                        File.Delete(backupFile);
+                    }
+                }
+                catch { }
+            }
+            else
+            {
+                File.Move(tempFile, filePath);
+            }
+        }
+        catch
         {
             try
             {
-                string tempFile = filePath + ".tmp";
-                File.WriteAllText(tempFile, content, Encoding.UTF8);
-                
-                if (File.Exists(filePath))
+                if (File.Exists(tempFile))
                 {
-                    File.Delete(filePath);
+                    File.Delete(tempFile);
                 }
-                
-                File.Move(tempFile, filePath);
-                return;
             }
-            catch (IOException)
-            {
-                System.Threading.Thread.Sleep(50);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                System.Threading.Thread.Sleep(50);
-            }
-            catch
-            {
-                return;
-            }
+            catch { }
         }
     }
 
@@ -304,7 +298,7 @@ public static class DataProtectionManager
         {
             if (!Directory.Exists(DataDirectory))
             {
-                DirectoryInfo dirInfo = Directory.CreateDirectory(DataDirectory);
+                Directory.CreateDirectory(DataDirectory);
                 SetDirectoryPermissions(DataDirectory);
             }
             

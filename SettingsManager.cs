@@ -305,7 +305,7 @@ public class SettingsManager
                 catch { }
             }
 
-            DataProtectionManager.SaveWithProtection(SettingsFileName, content);
+            DataProtectionManager.SaveFast(SettingsFileName, content);
         }
         catch { }
     }

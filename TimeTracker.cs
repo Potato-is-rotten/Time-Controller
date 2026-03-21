@@ -448,7 +448,7 @@ public class TimeTracker : IDisposable
             catch { }
         }
 
-        DataProtectionManager.SaveWithProtection(UsageFileName, content);
+        DataProtectionManager.SaveFast(UsageFileName, content);
     }
 
     private void SaveAppUsageData()
@@ -465,7 +465,7 @@ public class TimeTracker : IDisposable
             content = sb.ToString();
         }
 
-        DataProtectionManager.SaveWithProtection(AppUsageFileName, content);
+        DataProtectionManager.SaveFast(AppUsageFileName, content);
     }
 
     public void Reset()
