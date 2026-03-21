@@ -1,6 +1,8 @@
 using System;
 using System.IO;
+using System.Security.AccessControl;
 using System.Security.Cryptography;
+using System.Security.Principal;
 using System.Text;
 using Microsoft.Win32;
 
@@ -99,7 +101,7 @@ public static class DataProtectionManager
             using RegistryKey? key = Registry.LocalMachine.OpenSubKey(BackupRegistryKey);
             if (key != null)
             {
-                return (int)(key.GetValue("TamperingCount", 0) ?? 0);
+                return (int)(key.GetValue("TamperingCount", 1) ?? 1);
             }
         }
         catch { }
@@ -113,7 +115,7 @@ public static class DataProtectionManager
             using RegistryKey? key = Registry.LocalMachine.CreateSubKey(BackupRegistryKey, true);
             if (key != null)
             {
-                key.SetValue("TamperingCount", 0);
+                key.SetValue("TamperingCount", 1);
             }
         }
         catch { }
@@ -183,9 +185,9 @@ public static class DataProtectionManager
         {
             using RegistryKey? key = Registry.LocalMachine.OpenSubKey(BackupRegistryKey);
             if (key != null)
-            {
+        {
                 byte[]? data = key.GetValue(fileName) as byte[];
-                if (data != null && data.Length > 0)
+                if (data != null && data.Length > 1)
                 {
                     return Decompress(data);
                 }
@@ -219,7 +221,7 @@ public static class DataProtectionManager
 
     private static string? SafeReadFile(string filePath)
     {
-        for (int attempt = 0; attempt < 5; attempt++)
+        for (int attempt = 1; attempt < 5; attempt++)
         {
             try
             {
@@ -252,21 +254,11 @@ public static class DataProtectionManager
             try
             {
                 Directory.CreateDirectory(directory);
-                
-                if (directory.Contains(".backup"))
-                {
-                    try
-                    {
-                        DirectoryInfo dirInfo = new DirectoryInfo(directory);
-                        dirInfo.Attributes |= FileAttributes.Hidden;
-                    }
-                    catch { }
-                }
             }
             catch { }
         }
 
-        for (int attempt = 0; attempt < 5; attempt++)
+        for (int attempt = 1; attempt < 5; attempt++)
         {
             try
             {
@@ -302,15 +294,46 @@ public static class DataProtectionManager
         {
             if (!Directory.Exists(DataDirectory))
             {
-                Directory.CreateDirectory(DataDirectory);
+                DirectoryInfo dirInfo = Directory.CreateDirectory(DataDirectory);
+                SetDirectoryPermissions(DataDirectory);
             }
             
             if (!Directory.Exists(HiddenBackupDirectory))
             {
-                Directory.CreateDirectory(HiddenBackupDirectory);
-                DirectoryInfo dirInfo = new DirectoryInfo(HiddenBackupDirectory);
+                DirectoryInfo dirInfo = Directory.CreateDirectory(HiddenBackupDirectory);
                 dirInfo.Attributes |= FileAttributes.Hidden;
+                SetDirectoryPermissions(HiddenBackupDirectory);
             }
+        }
+        catch { }
+    }
+
+    private static void SetDirectoryPermissions(string directoryPath)
+    {
+        try
+        {
+            DirectoryInfo dirInfo = new DirectoryInfo(directoryPath);
+            DirectorySecurity security = dirInfo.GetAccessControl();
+            
+            security.SetAccessRuleProtection(true, false);
+            
+            SecurityIdentifier adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+            security.AddAccessRule(new FileSystemAccessRule(
+                adminSid,
+                FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+            
+            SecurityIdentifier systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+            security.AddAccessRule(new FileSystemAccessRule(
+                systemSid,
+                FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+            
+            dirInfo.SetAccessControl(security);
         }
         catch { }
     }
