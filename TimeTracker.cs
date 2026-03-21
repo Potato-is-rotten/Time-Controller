@@ -11,6 +11,9 @@ namespace ScreenTimeController;
 
 public class TimeTracker : IDisposable
 {
+    private const string UsageFileName = "usage.txt";
+    private const string AppUsageFileName = "app_usage.txt";
+    
     private TimeSpan _totalUsage;
     private TimeSpan _bonusTime;
     private readonly Dictionary<string, TimeSpan> _appUsage;
@@ -22,6 +25,7 @@ public class TimeTracker : IDisposable
     private readonly string _cleanExitFilePath;
     private System.Timers.Timer? _midnightTimer;
     private System.Timers.Timer? _saveTimer;
+    private System.Timers.Timer? _integrityCheckTimer;
     private DateTime _lastCheckedDate;
     private readonly object _lockObject = new();
     private readonly object _saveLock = new();
@@ -62,11 +66,12 @@ public class TimeTracker : IDisposable
         _isDisposed = false;
         _needsSave = false;
 
-        EnsureDataDirectory();
+        DataProtectionManager.EnsureDirectoryExists();
         LoadAllData();
         CheckAndApplyExitPenalty();
         SetupMidnightTimer();
         SetupSaveTimer();
+        SetupIntegrityCheckTimer();
     }
 
     private static string GetCleanExitFilePath()
@@ -123,6 +128,43 @@ public class TimeTracker : IDisposable
         CheckForNewDay();
     }
 
+    private void SetupIntegrityCheckTimer()
+    {
+        _integrityCheckTimer = new System.Timers.Timer(30000.0);
+        _integrityCheckTimer.Elapsed += OnIntegrityCheck;
+        _integrityCheckTimer.Start();
+    }
+
+    private void OnIntegrityCheck(object? sender, ElapsedEventArgs e)
+    {
+        CheckDataIntegrity();
+    }
+
+    private void CheckDataIntegrity()
+    {
+        try
+        {
+            if (!DataProtectionManager.VerifyIntegrity(UsageFileName))
+            {
+                string? content = DataProtectionManager.LoadWithProtection(UsageFileName);
+                if (!string.IsNullOrEmpty(content))
+                {
+                    DataProtectionManager.RecordTampering(UsageFileName);
+                }
+            }
+            
+            if (!DataProtectionManager.VerifyIntegrity(AppUsageFileName))
+            {
+                string? content = DataProtectionManager.LoadWithProtection(AppUsageFileName);
+                if (!string.IsNullOrEmpty(content))
+                {
+                    DataProtectionManager.RecordTampering(AppUsageFileName);
+                }
+            }
+        }
+        catch { }
+    }
+
     private void CheckForNewDay()
     {
         DateTime today = DateTime.Today;
@@ -155,12 +197,7 @@ public class TimeTracker : IDisposable
 
     private void LoadUsageData()
     {
-        string? content = SafeReadFile(_usageFilePath);
-        if (string.IsNullOrEmpty(content))
-        {
-            content = SafeReadFile(_backupFilePath);
-        }
-
+        string? content = DataProtectionManager.LoadWithProtection(UsageFileName);
         if (string.IsNullOrEmpty(content))
         {
             return;
@@ -205,7 +242,7 @@ public class TimeTracker : IDisposable
 
     private void LoadAppUsageData()
     {
-        string? content = SafeReadFile(_appUsageFilePath);
+        string? content = DataProtectionManager.LoadWithProtection(AppUsageFileName);
         if (string.IsNullOrEmpty(content))
         {
             return;
@@ -411,13 +448,7 @@ public class TimeTracker : IDisposable
             catch { }
         }
 
-        SafeWriteFile(_usageFilePath, content);
-
-        string? verifyContent = SafeReadFile(_usageFilePath);
-        if (verifyContent != content)
-        {
-            throw new IOException("Verification failed for usage data");
-        }
+        DataProtectionManager.SaveWithProtection(UsageFileName, content);
     }
 
     private void SaveAppUsageData()
@@ -434,7 +465,7 @@ public class TimeTracker : IDisposable
             content = sb.ToString();
         }
 
-        SafeWriteFile(_appUsageFilePath, content);
+        DataProtectionManager.SaveWithProtection(AppUsageFileName, content);
     }
 
     public void Reset()
@@ -552,6 +583,13 @@ public class TimeTracker : IDisposable
             {
                 _saveTimer?.Stop();
                 _saveTimer?.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                _integrityCheckTimer?.Stop();
+                _integrityCheckTimer?.Dispose();
             }
             catch { }
 

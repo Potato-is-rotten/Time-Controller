@@ -8,6 +8,7 @@ namespace ScreenTimeController;
 
 public class SettingsManager
 {
+    private const string SettingsFileName = "settings.txt";
     private readonly string _settingsFilePath;
     private readonly string _backupFilePath;
     private readonly object _lockObject = new();
@@ -93,7 +94,7 @@ public class SettingsManager
     {
         _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings.txt");
         _backupFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings_backup.txt");
-        EnsureDirectory();
+        DataProtectionManager.EnsureDirectoryExists();
         LoadSettings();
     }
 
@@ -185,12 +186,8 @@ public class SettingsManager
         {
             try
             {
-                string? content = SafeReadFile(_settingsFilePath);
-                if (string.IsNullOrEmpty(content))
-                {
-                    content = SafeReadFile(_backupFilePath);
-                }
-
+                string? content = DataProtectionManager.LoadWithProtection(SettingsFileName);
+                
                 if (!string.IsNullOrEmpty(content))
                 {
                     ParseSettings(content);
@@ -294,7 +291,7 @@ public class SettingsManager
                 catch { }
             }
 
-            SafeWriteFile(_settingsFilePath, content);
+            DataProtectionManager.SaveWithProtection(SettingsFileName, content);
         }
         catch { }
     }
