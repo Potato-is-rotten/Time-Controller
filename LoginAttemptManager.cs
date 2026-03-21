@@ -80,7 +80,11 @@ public class LoginAttemptManager
         
         if (!loadedFromHklm)
         {
-            LoadFromRegistry(Registry.CurrentUser);
+            bool loadedFromHkcu = LoadFromRegistry(Registry.CurrentUser);
+            if (!loadedFromHkcu)
+            {
+                LoadFromFile();
+            }
         }
         
         if (LockedUntil.HasValue && LockedUntil.Value <= DateTime.Now)
