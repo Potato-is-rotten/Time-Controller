@@ -1,6 +1,8 @@
 # Build outputs
 ScreenTimeController/bin/
 ScreenTimeController/obj/
+ProtectionService/bin/
+ProtectionService/obj/
 WatchdogMonitor/bin/
 WatchdogMonitor/obj/
 
