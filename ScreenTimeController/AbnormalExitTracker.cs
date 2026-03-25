@@ -60,6 +60,33 @@ public static class AbnormalExitTracker
         catch { }
     }
 
+    public static void IncrementAbnormalExitCount()
+    {
+        try
+        {
+            string commonDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
+            if (!Directory.Exists(commonDataDir))
+            {
+                Directory.CreateDirectory(commonDataDir);
+            }
+
+            string today = DateTime.Today.ToString("yyyy-MM-dd");
+            int currentCount = 0;
+
+            if (File.Exists(AbnormalExitFilePath))
+            {
+                string[] lines = File.ReadAllLines(AbnormalExitFilePath);
+                if (lines.Length >= 2 && lines[0].StartsWith(today))
+                {
+                    int.TryParse(lines[1], out currentCount);
+                }
+            }
+
+            File.WriteAllLines(AbnormalExitFilePath, new string[] { today, (currentCount + 1).ToString() });
+        }
+        catch { }
+    }
+
     public static AbnormalExitHistory GetHistory(int days = 7)
     {
         var history = new AbnormalExitHistory

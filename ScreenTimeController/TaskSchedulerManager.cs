@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Management;
 using System.Reflection;
 using System.Security.Principal;
 using Microsoft.Win32.TaskScheduler;
@@ -11,12 +12,31 @@ public static class TaskSchedulerManager
 {
     private const string TaskName = "ScreenTimeController_Restart";
     private const string TaskDescription = "Automatically restart Screen Time Controller when it exits unexpectedly";
+    private const string ServiceName = "ScreenTimeController_ProtectionService";
 
     public static bool IsAdministrator()
     {
         using WindowsIdentity identity = WindowsIdentity.GetCurrent();
         WindowsPrincipal principal = new(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    public static bool IsServiceInstalled()
+    {
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher(
+                $"SELECT * FROM Win32_Service WHERE Name = '{ServiceName}'");
+            foreach (System.Management.ManagementObject service in searcher.Get())
+            {
+                return true;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public static bool IsTaskInstalled()

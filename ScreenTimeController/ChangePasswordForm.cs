@@ -152,7 +152,8 @@ public class ChangePasswordForm : Form
             Size = new Size(130, 50),
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            AccessibleName = "OKButton"
         };
         _buttonOK.FlatAppearance.BorderSize = 0;
         _buttonOK.Click += new EventHandler(OnOKClick);
@@ -165,7 +166,8 @@ public class ChangePasswordForm : Form
             Size = new Size(130, 50),
             BackColor = Color.FromArgb(200, 200, 200),
             ForeColor = Color.Black,
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            AccessibleName = "CancelButton"
         };
         _buttonCancel.FlatAppearance.BorderSize = 0;
         _buttonCancel.Click += new EventHandler(OnCancelClick);
@@ -178,7 +180,8 @@ public class ChangePasswordForm : Form
             Size = new Size(180, 50),
             BackColor = Color.FromArgb(220, 53, 69),
             ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            AccessibleName = "RemovePasswordButton"
         };
         _buttonRemovePassword.FlatAppearance.BorderSize = 0;
         _buttonRemovePassword.Click += new EventHandler(OnRemovePasswordClick);

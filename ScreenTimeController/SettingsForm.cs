@@ -358,7 +358,8 @@ public class SettingsForm : Form
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
             Margin = new Padding(5),
-            Anchor = AnchorStyles.Left
+            Anchor = AnchorStyles.Left,
+            AccessibleName = "ApplyToAllButton"
         };
         _buttonApplyToAll.FlatAppearance.BorderSize = 0;
         _buttonApplyToAll.Click += new EventHandler(OnApplyToAllClick);
@@ -372,7 +373,8 @@ public class SettingsForm : Form
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
             Margin = new Padding(5),
-            Anchor = AnchorStyles.Left
+            Anchor = AnchorStyles.Left,
+            AccessibleName = "ChangePasswordButton"
         };
         _buttonChangePassword.FlatAppearance.BorderSize = 0;
         _buttonChangePassword.Click += new EventHandler(OnChangePasswordClick);
@@ -395,7 +397,8 @@ public class SettingsForm : Form
             BackColor = Color.FromArgb(200, 200, 200),
             ForeColor = Color.Black,
             FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(5)
+            Margin = new Padding(5),
+            AccessibleName = "CancelButton"
         };
         _buttonCancel.FlatAppearance.BorderSize = 0;
         _buttonCancel.Click += new EventHandler(OnCancelClick);
@@ -408,7 +411,8 @@ public class SettingsForm : Form
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(5)
+            Margin = new Padding(5),
+            AccessibleName = "OKButton"
         };
         _buttonOK.FlatAppearance.BorderSize = 0;
         _buttonOK.Click += new EventHandler(OnOKClick);

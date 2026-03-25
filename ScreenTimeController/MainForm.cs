@@ -23,6 +23,7 @@ public class MainForm : Form
     private bool _isLocked;
     private bool _hasWarned5Minutes;
     private bool _isDisposed;
+    private bool _hasShownMinimizedTip;
     private ImageList? _appIconList;
     private ListView? _listBoxAppUsage;
     private bool _isUpdating;
@@ -462,20 +463,20 @@ public class MainForm : Form
                 TimeSpan dailyLimit = _timeTracker.GetDailyLimit();
                 TimeSpan totalUsage = _timeTracker.TotalUsage;
                 TimeSpan bonusTime = _timeTracker.BonusTime;
-                TimeSpan remaining = dailyLimit + bonusTime - totalUsage;
-                if (remaining < TimeSpan.Zero)
+                TimeSpan actualRemaining = dailyLimit - totalUsage;
+                if (actualRemaining < TimeSpan.Zero)
                 {
-                    remaining = TimeSpan.Zero;
+                    actualRemaining = TimeSpan.Zero;
                 }
                 _labelDailyLimit!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("DailyLimit"), dailyLimit.Hours, dailyLimit.Minutes);
                 _labelUsedToday!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("UsedToday"), totalUsage.Hours, totalUsage.Minutes);
                 if (bonusTime > TimeSpan.Zero)
                 {
-                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m (+{3}m bonus)", LanguageManager.GetString("Remaining"), remaining.Hours, remaining.Minutes, bonusTime.Minutes);
+                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m (+{3}m bonus)", LanguageManager.GetString("Remaining"), actualRemaining.Hours, actualRemaining.Minutes, (int)bonusTime.TotalMinutes);
                 }
                 else
                 {
-                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("Remaining"), remaining.Hours, remaining.Minutes);
+                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("Remaining"), actualRemaining.Hours, actualRemaining.Minutes);
                 }
                 int progress = 0;
                 if (dailyLimit.TotalSeconds > 0.0)
@@ -629,7 +630,11 @@ public class MainForm : Form
             if (WindowState == FormWindowState.Minimized)
             {
                 Hide();
-                _notifyIcon!.ShowBalloonTip(2000, LanguageManager.GetString("AppTitle"), LanguageManager.GetString("MinimizedToTray"), ToolTipIcon.Info);
+                if (!_hasShownMinimizedTip)
+                {
+                    _notifyIcon!.ShowBalloonTip(2000, LanguageManager.GetString("AppTitle"), LanguageManager.GetString("MinimizedToTray"), ToolTipIcon.Info);
+                    _hasShownMinimizedTip = true;
+                }
             }
         }
         catch { }
@@ -898,7 +903,8 @@ public class MainForm : Form
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
-            Anchor = AnchorStyles.None
+            Anchor = AnchorStyles.None,
+            AccessibleName = "SettingsButton"
         };
         _buttonSettings.FlatAppearance.BorderSize = 0;
         _buttonSettings.Click += new EventHandler(OnSettingsClick);

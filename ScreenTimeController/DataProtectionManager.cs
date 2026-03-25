@@ -40,39 +40,112 @@ public static class DataProtectionManager
         SafeWriteFile(primaryPath, content);
     }
 
+    public static void SaveWithEncryption(string fileName, string content)
+    {
+        string primaryPath = Path.Combine(DataDirectory, fileName);
+        string encryptedContent = Convert.ToBase64String(ProtectedData.Protect(
+            Encoding.UTF8.GetBytes(content),
+            null,
+            DataProtectionScope.CurrentUser));
+        SafeWriteFile(primaryPath, encryptedContent);
+    }
+
+    public static string? LoadWithDecryption(string fileName)
+    {
+        string primaryPath = Path.Combine(DataDirectory, fileName);
+        string? encryptedContent = SafeReadFile(primaryPath);
+        if (string.IsNullOrEmpty(encryptedContent))
+        {
+            return null;
+        }
+        try
+        {
+            byte[] decryptedBytes = ProtectedData.Unprotect(
+                Convert.FromBase64String(encryptedContent),
+                null,
+                DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(decryptedBytes);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public static string? LoadWithProtection(string fileName)
     {
         string primaryPath = Path.Combine(DataDirectory, fileName);
         string backupPath = Path.Combine(HiddenBackupDirectory, fileName);
         
         string? content = SafeReadFile(primaryPath);
-        if (!string.IsNullOrEmpty(content) && VerifyHash(fileName, content))
+        if (!string.IsNullOrEmpty(content))
         {
-            return content;
+            if (VerifyHash(fileName, content))
+            {
+                return content;
+            }
+            if (!HashExists(fileName))
+            {
+                return content;
+            }
         }
         
         content = SafeReadFile(backupPath);
-        if (!string.IsNullOrEmpty(content) && VerifyHash(fileName, content))
+        if (!string.IsNullOrEmpty(content))
         {
-            RestorePrimaryFromBackup(fileName, content);
-            return content;
+            if (VerifyHash(fileName, content))
+            {
+                RestorePrimaryFromBackup(fileName, content);
+                return content;
+            }
+            if (!HashExists(fileName))
+            {
+                RestorePrimaryFromBackup(fileName, content);
+                return content;
+            }
         }
         
         content = LoadFromRegistry(fileName);
-        if (!string.IsNullOrEmpty(content) && VerifyHash(fileName, content))
+        if (!string.IsNullOrEmpty(content))
         {
-            RestorePrimaryFromBackup(fileName, content);
-            return content;
+            if (VerifyHash(fileName, content))
+            {
+                RestorePrimaryFromBackup(fileName, content);
+                return content;
+            }
+            if (!HashExists(fileName))
+            {
+                RestorePrimaryFromBackup(fileName, content);
+                return content;
+            }
         }
         
         return null;
+    }
+
+    private static bool HashExists(string fileName)
+    {
+        try
+        {
+            using RegistryKey? key = Registry.LocalMachine.OpenSubKey(HashRegistryKey);
+            if (key == null)
+            {
+                return false;
+            }
+            string? storedHash = key.GetValue(fileName) as string;
+            return !string.IsNullOrEmpty(storedHash);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public static bool VerifyIntegrity(string fileName)
     {
         string primaryPath = Path.Combine(DataDirectory, fileName);
         string? content = SafeReadFile(primaryPath);
-        
+
         if (string.IsNullOrEmpty(content))
         {
             return false;
@@ -354,5 +427,17 @@ public static class DataProtectionManager
         }
         catch { }
         return false;
+    }
+
+    public static bool AreAllBackupsLost(string fileName)
+    {
+        string primaryPath = Path.Combine(DataDirectory, fileName);
+        string backupPath = Path.Combine(HiddenBackupDirectory, fileName);
+
+        bool primaryExists = File.Exists(primaryPath);
+        bool backupExists = File.Exists(backupPath);
+        bool registryExists = HasBackupInRegistry(fileName);
+
+        return !primaryExists && !backupExists && !registryExists;
     }
 }
