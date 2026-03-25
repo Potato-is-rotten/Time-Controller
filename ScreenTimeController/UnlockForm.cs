@@ -58,6 +58,61 @@ public class UnlockForm : Form
     private void UnlockForm_Load(object? sender, EventArgs e)
     {
         SetFullScreen();
+
+        Screen? screen = Screen.FromPoint(Cursor.Position);
+        if (screen == null)
+        {
+            screen = Screen.PrimaryScreen;
+        }
+        float scaleFactor = Math.Min(screen.WorkingArea.Width / 1920f, screen.WorkingArea.Height / 1080f);
+        scaleFactor = Math.Max(scaleFactor, 0.75f);
+
+        int panelWidth = (int)(500 * scaleFactor);
+        int panelHeight = (int)(350 * scaleFactor);
+        _centerPanel!.Size = new Size(panelWidth, panelHeight);
+
+        int titleSize = Math.Max(12, (int)(12 * scaleFactor));
+        _labelTitle!.Font = new Font("Segoe UI", titleSize, FontStyle.Bold);
+        _labelTitle.Size = new Size(panelWidth, (int)(50 * scaleFactor));
+        _labelTitle.Location = new Point(0, (int)(20 * scaleFactor));
+
+        _labelExpired!.Font = new Font("Segoe UI", Math.Max(11, (int)(14 * scaleFactor)));
+        _labelExpired.Size = new Size(panelWidth, (int)(40 * scaleFactor));
+        _labelExpired.Location = new Point(0, (int)(80 * scaleFactor));
+
+        int innerPanelWidth = (int)(440 * scaleFactor);
+        int innerPanelHeight = (int)(200 * scaleFactor);
+        _passwordPanel!.Size = new Size(innerPanelWidth, innerPanelHeight);
+        _passwordPanel.Location = new Point((panelWidth - innerPanelWidth) / 2, (int)(130 * scaleFactor));
+
+        int fontSize = Math.Max(11, (int)(14 * scaleFactor));
+        _labelPassword!.Font = new Font("Segoe UI", fontSize);
+        _labelPassword.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+
+        _textBoxPassword!.Font = new Font("Segoe UI", fontSize);
+        _textBoxPassword.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+        _textBoxPassword.Location = new Point(0, (int)(50 * scaleFactor));
+
+        int buttonWidth = (int)(200 * scaleFactor);
+        int buttonHeight = (int)(50 * scaleFactor);
+        _buttonUnlock!.Font = new Font("Segoe UI", fontSize);
+        _buttonUnlock.Size = new Size(buttonWidth, buttonHeight);
+        _buttonUnlock.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(110 * scaleFactor));
+
+        _bonusPanel!.Size = new Size(innerPanelWidth, innerPanelHeight);
+        _bonusPanel.Location = _passwordPanel.Location;
+
+        _labelSelectTime!.Font = new Font("Segoe UI", fontSize);
+        _labelSelectTime.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+
+        _comboBoxBonusTime!.Font = new Font("Segoe UI", fontSize);
+        _comboBoxBonusTime.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+        _comboBoxBonusTime.Location = new Point(0, (int)(50 * scaleFactor));
+
+        _buttonAddTime!.Font = new Font("Segoe UI", fontSize);
+        _buttonAddTime.Size = new Size(buttonWidth, buttonHeight);
+        _buttonAddTime.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(110 * scaleFactor));
+
         CenterThePanel();
     }
 
@@ -223,7 +278,7 @@ public class UnlockForm : Form
         _labelTitle = new Label
         {
             Text = LanguageManager.GetString("AppTitle"),
-            Font = new Font("Segoe UI", 24f, FontStyle.Bold),
+            Font = new Font("Segoe UI", 12f, FontStyle.Bold),
             ForeColor = Color.White,
             TextAlign = ContentAlignment.MiddleCenter,
             Location = new Point(0, 20),
@@ -275,7 +330,8 @@ public class UnlockForm : Form
             Location = new Point(120, 110),
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            AccessibleName = "UnlockButton"
         };
         _buttonUnlock.FlatAppearance.BorderSize = 0;
         _buttonUnlock.Click += new EventHandler(OnUnlockClick);
@@ -322,7 +378,8 @@ public class UnlockForm : Form
             Location = new Point(120, 110),
             BackColor = Color.FromArgb(40, 167, 69),
             ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
+            FlatStyle = FlatStyle.Flat,
+            AccessibleName = "AddTimeButton"
         };
         _buttonAddTime.FlatAppearance.BorderSize = 0;
         _buttonAddTime.Click += new EventHandler(OnAddTimeClick);

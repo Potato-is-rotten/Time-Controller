@@ -125,6 +125,13 @@ internal static class Program
             Application.SetHighDpiMode(HighDpiMode.SystemAware);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            if (ShouldShowInstallWizard())
+            {
+                using var wizard = new InstallWizardForm();
+                wizard.ShowDialog();
+            }
+
             Application.Run(new MainForm());
         }
         catch (Exception ex)
@@ -154,6 +161,20 @@ internal static class Program
         catch (Exception ex)
         {
             MessageBox.Show($"Failed to restart as administrator: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private static bool ShouldShowInstallWizard()
+    {
+        try
+        {
+            bool serviceInstalled = TaskSchedulerManager.IsServiceInstalled();
+            bool taskInstalled = TaskSchedulerManager.IsTaskInstalled();
+            return !serviceInstalled || !taskInstalled;
+        }
+        catch
+        {
+            return false;
         }
     }
 }

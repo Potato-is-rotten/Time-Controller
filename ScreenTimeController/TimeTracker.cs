@@ -242,7 +242,7 @@ public class TimeTracker : IDisposable
 
     private void LoadAppUsageData()
     {
-        string? content = DataProtectionManager.LoadWithProtection(AppUsageFileName);
+        string? content = DataProtectionManager.LoadWithDecryption(AppUsageFileName);
         if (string.IsNullOrEmpty(content))
         {
             return;
@@ -465,7 +465,7 @@ public class TimeTracker : IDisposable
             content = sb.ToString();
         }
 
-        DataProtectionManager.SaveFast(AppUsageFileName, content);
+        DataProtectionManager.SaveWithEncryption(AppUsageFileName, content);
     }
 
     public void Reset()
@@ -532,6 +532,7 @@ public class TimeTracker : IDisposable
                 {
                     _totalUsage += TimeSpan.FromMinutes(1);
                 }
+                AbnormalExitTracker.IncrementAbnormalExitCount();
                 _needsSave = true;
             }
         }

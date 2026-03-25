@@ -3,6 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Windows.Forms;
 
 namespace ScreenTimeController;
 
@@ -194,14 +195,26 @@ public class SettingsManager
             try
             {
                 string? content = DataProtectionManager.LoadWithProtection(SettingsFileName);
-                
+
                 if (!string.IsNullOrEmpty(content))
                 {
                     ParseSettings(content);
                 }
                 else
                 {
-                    SaveSettings();
+                    if (DataProtectionManager.AreAllBackupsLost(SettingsFileName))
+                    {
+                        MessageBox.Show(
+                            LanguageManager.GetString("SettingsLostDescription"),
+                            LanguageManager.GetString("SettingsLost"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        ResetToDefaults();
+                    }
+                    else
+                    {
+                        SaveSettings();
+                    }
                 }
             }
             catch { }
@@ -366,5 +379,23 @@ public class SettingsManager
         }
         using SHA256 sha = SHA256.Create();
         return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(password)));
+    }
+
+    public void ResetToDefaults()
+    {
+        lock (_lockObject)
+        {
+            _sundayLimitMinutes = 120;
+            _mondayLimitMinutes = 120;
+            _tuesdayLimitMinutes = 120;
+            _wednesdayLimitMinutes = 120;
+            _thursdayLimitMinutes = 120;
+            _fridayLimitMinutes = 120;
+            _saturdayLimitMinutes = 120;
+            _passwordHash = "";
+            _language = Language.SimplifiedChinese;
+            _enablePasswordLock = false;
+        }
+        SaveSettings();
     }
 }
