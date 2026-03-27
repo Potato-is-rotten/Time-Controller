@@ -192,6 +192,7 @@ public class SettingsManager
     {
         lock (_lockObject)
         {
+            bool loaded = false;
             try
             {
                 string? content = DataProtectionManager.LoadWithProtection(SettingsFileName);
@@ -199,28 +200,62 @@ public class SettingsManager
                 if (!string.IsNullOrEmpty(content))
                 {
                     ParseSettings(content);
+                    loaded = true;
                 }
                 else
                 {
-                    if (DataProtectionManager.AreAllBackupsLost(SettingsFileName))
+                    content = DataProtectionManager.LoadWithDecryption(SettingsFileName);
+                    if (!string.IsNullOrEmpty(content))
                     {
-                        MessageBox.Show(
-                            LanguageManager.GetString("SettingsLostDescription"),
-                            LanguageManager.GetString("SettingsLost"),
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        ResetToDefaults();
-                    }
-                    else
-                    {
-                        SaveSettings();
+                        ParseSettings(content);
+                        SaveWithEncryption();
+                        loaded = true;
                     }
                 }
             }
             catch { }
+
+            if (!loaded)
+            {
+                bool backupsLost = false;
+                try { backupsLost = DataProtectionManager.AreAllBackupsLost(SettingsFileName); } catch { }
+                
+                if (!backupsLost)
+                {
+                    try { SaveSettings(); } catch { }
+                }
+            }
         }
 
         LanguageManager.CurrentLanguage = _language;
+    }
+
+    private void SaveWithEncryption()
+    {
+        try
+        {
+            EnsureDirectory();
+
+            string content;
+            lock (_lockObject)
+            {
+                StringBuilder sb = new();
+                sb.AppendLine($"SundayLimit={_sundayLimitMinutes}");
+                sb.AppendLine($"MondayLimit={_mondayLimitMinutes}");
+                sb.AppendLine($"TuesdayLimit={_tuesdayLimitMinutes}");
+                sb.AppendLine($"WednesdayLimit={_wednesdayLimitMinutes}");
+                sb.AppendLine($"ThursdayLimit={_thursdayLimitMinutes}");
+                sb.AppendLine($"FridayLimit={_fridayLimitMinutes}");
+                sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
+                sb.AppendLine($"PasswordHash={_passwordHash}");
+                sb.AppendLine($"Language={(int)_language}");
+                sb.Append($"EnablePasswordLock={_enablePasswordLock}");
+                content = sb.ToString();
+            }
+
+            DataProtectionManager.SaveWithEncryption(SettingsFileName, content);
+        }
+        catch { }
     }
 
     private void ParseSettings(string content)
