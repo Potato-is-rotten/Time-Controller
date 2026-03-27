@@ -17,7 +17,7 @@
 ## 系统要求
 
 - Windows 10 或更高版本
-- .NET 8.0 Runtime
+- .NET 5.0 Runtime
 
 ## 项目结构
 
@@ -31,7 +31,7 @@ Time-Controller/
 
 ## 构建方法
 
-1. 安装 .NET 8.0 SDK
+1. 安装 .NET 5.0 SDK
 2. 克隆仓库：
    ```bash
    git clone https://github.com/Potato-is-rotten/Time-Controller.git

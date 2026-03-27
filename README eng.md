@@ -17,7 +17,7 @@ A Windows screen time management tool to help you monitor and control computer u
 ## System Requirements
 
 - Windows 10 or later
-- .NET 8.0 Runtime
+- .NET 5.0 Runtime
 
 ## Project Structure
 
@@ -31,7 +31,7 @@ Time-Controller/
 
 ## Building
 
-1. Install .NET 8.0 SDK
+1. Install .NET 5.0 SDK
 2. Clone the repository:
    ```bash
    git clone https://github.com/Potato-is-rotten/Time-Controller.git
