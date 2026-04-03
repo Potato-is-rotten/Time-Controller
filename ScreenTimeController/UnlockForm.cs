@@ -67,51 +67,51 @@ public class UnlockForm : Form
         float scaleFactor = Math.Min(screen.WorkingArea.Width / 1920f, screen.WorkingArea.Height / 1080f);
         scaleFactor = Math.Max(scaleFactor, 0.75f);
 
-        int panelWidth = (int)(500 * scaleFactor);
-        int panelHeight = (int)(350 * scaleFactor);
+        int panelWidth = (int)(450 * scaleFactor);
+        int panelHeight = (int)(300 * scaleFactor);
         _centerPanel!.Size = new Size(panelWidth, panelHeight);
 
-        int titleSize = Math.Max(12, (int)(12 * scaleFactor));
+        int titleSize = Math.Max(10, (int)(10 * scaleFactor));
         _labelTitle!.Font = new Font("Segoe UI", titleSize, FontStyle.Bold);
-        _labelTitle.Size = new Size(panelWidth, (int)(50 * scaleFactor));
-        _labelTitle.Location = new Point(0, (int)(20 * scaleFactor));
+        _labelTitle.Size = new Size(panelWidth, (int)(45 * scaleFactor));
+        _labelTitle.Location = new Point(0, (int)(15 * scaleFactor));
 
-        _labelExpired!.Font = new Font("Segoe UI", Math.Max(11, (int)(14 * scaleFactor)));
-        _labelExpired.Size = new Size(panelWidth, (int)(40 * scaleFactor));
-        _labelExpired.Location = new Point(0, (int)(80 * scaleFactor));
+        _labelExpired!.Font = new Font("Segoe UI", Math.Max(10, (int)(12 * scaleFactor)));
+        _labelExpired.Size = new Size(panelWidth, (int)(35 * scaleFactor));
+        _labelExpired.Location = new Point(0, (int)(65 * scaleFactor));
 
         int innerPanelWidth = (int)(440 * scaleFactor);
         int innerPanelHeight = (int)(200 * scaleFactor);
         _passwordPanel!.Size = new Size(innerPanelWidth, innerPanelHeight);
         _passwordPanel.Location = new Point((panelWidth - innerPanelWidth) / 2, (int)(130 * scaleFactor));
 
-        int fontSize = Math.Max(11, (int)(14 * scaleFactor));
+        int fontSize = Math.Max(10, (int)(12 * scaleFactor));
         _labelPassword!.Font = new Font("Segoe UI", fontSize);
-        _labelPassword.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+        _labelPassword.Size = new Size(innerPanelWidth, (int)(35 * scaleFactor));
 
         _textBoxPassword!.Font = new Font("Segoe UI", fontSize);
-        _textBoxPassword.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
-        _textBoxPassword.Location = new Point(0, (int)(50 * scaleFactor));
+        _textBoxPassword.Size = new Size(innerPanelWidth, (int)(35 * scaleFactor));
+        _textBoxPassword.Location = new Point(0, (int)(45 * scaleFactor));
 
-        int buttonWidth = (int)(200 * scaleFactor);
-        int buttonHeight = (int)(50 * scaleFactor);
+        int buttonWidth = (int)(180 * scaleFactor);
+        int buttonHeight = (int)(45 * scaleFactor);
         _buttonUnlock!.Font = new Font("Segoe UI", fontSize);
         _buttonUnlock.Size = new Size(buttonWidth, buttonHeight);
-        _buttonUnlock.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(110 * scaleFactor));
+        _buttonUnlock.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(100 * scaleFactor));
 
         _bonusPanel!.Size = new Size(innerPanelWidth, innerPanelHeight);
         _bonusPanel.Location = _passwordPanel.Location;
 
         _labelSelectTime!.Font = new Font("Segoe UI", fontSize);
-        _labelSelectTime.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
+        _labelSelectTime.Size = new Size(innerPanelWidth, (int)(35 * scaleFactor));
 
         _comboBoxBonusTime!.Font = new Font("Segoe UI", fontSize);
-        _comboBoxBonusTime.Size = new Size(innerPanelWidth, (int)(40 * scaleFactor));
-        _comboBoxBonusTime.Location = new Point(0, (int)(50 * scaleFactor));
+        _comboBoxBonusTime.Size = new Size(innerPanelWidth, (int)(35 * scaleFactor));
+        _comboBoxBonusTime.Location = new Point(0, (int)(45 * scaleFactor));
 
         _buttonAddTime!.Font = new Font("Segoe UI", fontSize);
         _buttonAddTime.Size = new Size(buttonWidth, buttonHeight);
-        _buttonAddTime.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(110 * scaleFactor));
+        _buttonAddTime.Location = new Point((innerPanelWidth - buttonWidth) / 2, (int)(100 * scaleFactor));
 
         CenterThePanel();
     }
