@@ -470,13 +470,18 @@ public class MainForm : Form
                 }
                 _labelDailyLimit!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("DailyLimit"), dailyLimit.Hours, dailyLimit.Minutes);
                 _labelUsedToday!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("UsedToday"), totalUsage.Hours, totalUsage.Minutes);
+                TimeSpan displayRemaining = dailyLimit + bonusTime - totalUsage;
+                if (displayRemaining < TimeSpan.Zero)
+                {
+                    displayRemaining = TimeSpan.Zero;
+                }
                 if (bonusTime > TimeSpan.Zero)
                 {
-                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m (+{3}m bonus)", LanguageManager.GetString("Remaining"), actualRemaining.Hours, actualRemaining.Minutes, (int)bonusTime.TotalMinutes);
+                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m ({3})", LanguageManager.GetString("Remaining"), displayRemaining.Hours, displayRemaining.Minutes, string.Format(LanguageManager.GetString("BonusTimeDisplay"), (int)bonusTime.TotalMinutes));
                 }
                 else
                 {
-                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("Remaining"), actualRemaining.Hours, actualRemaining.Minutes);
+                    _labelRemaining!.Text = string.Format("{0}: {1}h {2}m", LanguageManager.GetString("Remaining"), displayRemaining.Hours, displayRemaining.Minutes);
                 }
                 int progress = 0;
                 if (dailyLimit.TotalSeconds > 0.0)
