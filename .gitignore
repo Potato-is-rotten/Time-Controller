@@ -12,6 +12,10 @@ ScreenTimeController.Core/obj/
 ScreenTimeController.Wpf/bin/
 ScreenTimeController.Wpf/obj/
 
+# Test project
+ScreenTimeController.Tests/bin/
+ScreenTimeController.Tests/obj/
+
 # Old publish folders
 output_v*/
 publish_*/
