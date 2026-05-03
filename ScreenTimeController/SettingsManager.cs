@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -24,6 +25,8 @@ public class SettingsManager
     private string _passwordHash = "";
     private Language _language = Language.English;
     private bool _enablePasswordLock = true;
+    private LockMode _currentLockMode = LockMode.FullScreen;
+    private List<AppTimeLimit> _appTimeLimits = new();
 
     public TimeSpan SundayLimit
     {
@@ -81,6 +84,71 @@ public class SettingsManager
     {
         get { lock (_lockObject) { return _enablePasswordLock; } }
         set { lock (_lockObject) { _enablePasswordLock = value; } }
+    }
+
+    public LockMode CurrentLockMode
+    {
+        get { lock (_lockObject) { return _currentLockMode; } }
+        set { lock (_lockObject) { _currentLockMode = value; } }
+    }
+
+    public List<AppTimeLimit> AppTimeLimits
+    {
+        get { lock (_lockObject) { return new List<AppTimeLimit>(_appTimeLimits); } }
+        set { lock (_lockObject) { _appTimeLimits = value ?? new List<AppTimeLimit>(); } }
+    }
+
+    public void AddAppTimeLimit(AppTimeLimit limit)
+    {
+        if (limit == null || string.IsNullOrEmpty(limit.AppIdentifier))
+        {
+            return;
+        }
+        
+        lock (_lockObject)
+        {
+            var existing = _appTimeLimits.Find(a => a.AppIdentifier == limit.AppIdentifier);
+            if (existing != null)
+            {
+                existing.DisplayName = limit.DisplayName;
+                existing.DailyLimit = limit.DailyLimit;
+                existing.IsEnabled = limit.IsEnabled;
+                existing.IconPath = limit.IconPath;
+            }
+            else
+            {
+                _appTimeLimits.Add(limit.Clone());
+            }
+        }
+        SaveSettings();
+    }
+
+    public void RemoveAppTimeLimit(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return;
+        }
+        
+        lock (_lockObject)
+        {
+            _appTimeLimits.RemoveAll(a => a.AppIdentifier == appIdentifier);
+        }
+        SaveSettings();
+    }
+
+    public AppTimeLimit? GetAppTimeLimit(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return null;
+        }
+        
+        lock (_lockObject)
+        {
+            var limit = _appTimeLimits.Find(a => a.AppIdentifier == appIdentifier);
+            return limit?.Clone();
+        }
     }
 
     public TimeSpan GetDailyLimit()
@@ -192,7 +260,6 @@ public class SettingsManager
     {
         lock (_lockObject)
         {
-            bool loaded = false;
             try
             {
                 string? content = DataProtectionManager.LoadWithProtection(SettingsFileName);
@@ -200,62 +267,28 @@ public class SettingsManager
                 if (!string.IsNullOrEmpty(content))
                 {
                     ParseSettings(content);
-                    loaded = true;
                 }
                 else
                 {
-                    content = DataProtectionManager.LoadWithDecryption(SettingsFileName);
-                    if (!string.IsNullOrEmpty(content))
+                    if (DataProtectionManager.AreAllBackupsLost(SettingsFileName))
                     {
-                        ParseSettings(content);
-                        SaveWithEncryption();
-                        loaded = true;
+                        MessageBox.Show(
+                            LanguageManager.GetString("SettingsLostDescription"),
+                            LanguageManager.GetString("SettingsLost"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        ResetToDefaults();
+                    }
+                    else
+                    {
+                        SaveSettings();
                     }
                 }
             }
             catch { }
-
-            if (!loaded)
-            {
-                bool backupsLost = false;
-                try { backupsLost = DataProtectionManager.AreAllBackupsLost(SettingsFileName); } catch { }
-                
-                if (!backupsLost)
-                {
-                    try { SaveSettings(); } catch { }
-                }
-            }
         }
 
         LanguageManager.CurrentLanguage = _language;
-    }
-
-    private void SaveWithEncryption()
-    {
-        try
-        {
-            EnsureDirectory();
-
-            string content;
-            lock (_lockObject)
-            {
-                StringBuilder sb = new();
-                sb.AppendLine($"SundayLimit={_sundayLimitMinutes}");
-                sb.AppendLine($"MondayLimit={_mondayLimitMinutes}");
-                sb.AppendLine($"TuesdayLimit={_tuesdayLimitMinutes}");
-                sb.AppendLine($"WednesdayLimit={_wednesdayLimitMinutes}");
-                sb.AppendLine($"ThursdayLimit={_thursdayLimitMinutes}");
-                sb.AppendLine($"FridayLimit={_fridayLimitMinutes}");
-                sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
-                sb.AppendLine($"PasswordHash={_passwordHash}");
-                sb.AppendLine($"Language={(int)_language}");
-                sb.Append($"EnablePasswordLock={_enablePasswordLock}");
-                content = sb.ToString();
-            }
-
-            DataProtectionManager.SaveWithEncryption(SettingsFileName, content);
-        }
-        catch { }
     }
 
     private void ParseSettings(string content)
@@ -315,10 +348,73 @@ public class SettingsManager
                             _enablePasswordLock = enableLock;
                         }
                         break;
+                    case "CurrentLockMode":
+                        if (int.TryParse(value, out int lockMode) && Enum.IsDefined(typeof(LockMode), lockMode))
+                        {
+                            _currentLockMode = (LockMode)lockMode;
+                        }
+                        break;
+                    case "AppTimeLimits":
+                        ParseAppTimeLimits(value);
+                        break;
                 }
             }
             catch { }
         }
+    }
+
+    private void ParseAppTimeLimits(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        try
+        {
+            _appTimeLimits.Clear();
+            string[] apps = value.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string app in apps)
+            {
+                string[] fields = app.Split(new[] { "::" }, StringSplitOptions.None);
+                if (fields.Length >= 4)
+                {
+                    var limit = new AppTimeLimit
+                    {
+                        AppIdentifier = Uri.UnescapeDataString(fields[0]),
+                        DisplayName = Uri.UnescapeDataString(fields[1]),
+                        DailyLimit = TimeSpan.FromMinutes(double.Parse(fields[2], System.Globalization.CultureInfo.InvariantCulture)),
+                        IsEnabled = bool.Parse(fields[3])
+                    };
+                    if (fields.Length >= 5 && !string.IsNullOrEmpty(fields[4]))
+                    {
+                        limit.IconPath = Uri.UnescapeDataString(fields[4]);
+                    }
+                    _appTimeLimits.Add(limit);
+                }
+            }
+        }
+        catch { }
+    }
+
+    private string SerializeAppTimeLimits()
+    {
+        if (_appTimeLimits.Count == 0)
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        foreach (var limit in _appTimeLimits)
+        {
+            string part = $"{Uri.EscapeDataString(limit.AppIdentifier)}::" +
+                          $"{Uri.EscapeDataString(limit.DisplayName)}::" +
+                          $"{limit.DailyLimit.TotalMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)}::" +
+                          $"{limit.IsEnabled}::" +
+                          $"{Uri.EscapeDataString(limit.IconPath ?? "")}";
+            parts.Add(part);
+        }
+        return string.Join(";;", parts);
     }
 
     public void SaveSettings()
@@ -340,7 +436,9 @@ public class SettingsManager
                 sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
                 sb.AppendLine($"PasswordHash={_passwordHash}");
                 sb.AppendLine($"Language={(int)_language}");
-                sb.Append($"EnablePasswordLock={_enablePasswordLock}");
+                sb.AppendLine($"EnablePasswordLock={_enablePasswordLock}");
+                sb.AppendLine($"CurrentLockMode={(int)_currentLockMode}");
+                sb.Append($"AppTimeLimits={SerializeAppTimeLimits()}");
                 content = sb.ToString();
             }
 
@@ -430,6 +528,8 @@ public class SettingsManager
             _passwordHash = "";
             _language = Language.SimplifiedChinese;
             _enablePasswordLock = false;
+            _currentLockMode = LockMode.FullScreen;
+            _appTimeLimits.Clear();
         }
         SaveSettings();
     }

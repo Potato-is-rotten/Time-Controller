@@ -9,6 +9,7 @@ namespace ScreenTimeController;
 public class SettingsForm : Form
 {
     private readonly SettingsManager _settingsManager;
+    private readonly TimeTracker? _timeTracker;
     private bool _isPasswordVerified;
     private bool _isClosing;
 
@@ -67,11 +68,12 @@ public class SettingsForm : Form
     private AppLimitSettingsControl? _appLimitSettingsControl;
     private IContainer? components;
 
-    public SettingsForm(SettingsManager settingsManager)
+    public SettingsForm(SettingsManager settingsManager, TimeTracker? timeTracker = null)
     {
         _isClosing = false;
         InitializeComponent();
         _settingsManager = settingsManager;
+        _timeTracker = timeTracker;
         _isPasswordVerified = false;
         LoadSettings();
         ApplyLanguage();
@@ -301,7 +303,7 @@ public class SettingsForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 5,
-            RowCount = 9,
+            RowCount = 10,
             AutoScroll = true,
             Padding = new Padding(10)
         };
@@ -310,7 +312,7 @@ public class SettingsForm : Form
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 18f));
         daysTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 12f));
-        for (int i = 0; i < 9; i++)
+        for (int i = 0; i < 10; i++)
         {
             daysTable.RowStyles.Add(new RowStyle(SizeType.Absolute, 55f));
         }
@@ -348,7 +350,7 @@ public class SettingsForm : Form
             Checked = true,
             TextAlign = ContentAlignment.MiddleLeft
         };
-        daysTable.SetColumnSpan(_checkBoxEnablePasswordLock, 4);
+        daysTable.SetColumnSpan(_checkBoxEnablePasswordLock, 2);
         daysTable.Controls.Add(_checkBoxEnablePasswordLock, 1, 8);
 
         Label labelPasswordLock = new Label
@@ -360,11 +362,52 @@ public class SettingsForm : Form
         };
         daysTable.Controls.Add(labelPasswordLock, 0, 8);
 
+        FlowLayoutPanel dailyLimitButtons = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 10, 0, 0)
+        };
+
+        _buttonChangePassword = new Button
+        {
+            Font = new Font("Segoe UI", 10f),
+            Size = new Size(150, 35),
+            BackColor = Color.FromArgb(0, 122, 204),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5, 0, 5, 0),
+            AccessibleName = "ChangePasswordButton"
+        };
+        _buttonChangePassword.FlatAppearance.BorderSize = 0;
+        _buttonChangePassword.Click += new EventHandler(OnChangePasswordClick);
+        dailyLimitButtons.Controls.Add(_buttonChangePassword);
+
+        _buttonApplyToAll = new Button
+        {
+            Font = new Font("Segoe UI", 10f),
+            Size = new Size(150, 35),
+            BackColor = Color.FromArgb(0, 122, 204),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(5, 0, 5, 0),
+            AccessibleName = "ApplyToAllButton"
+        };
+        _buttonApplyToAll.FlatAppearance.BorderSize = 0;
+        _buttonApplyToAll.Click += new EventHandler(OnApplyToAllClick);
+        dailyLimitButtons.Controls.Add(_buttonApplyToAll);
+
+        daysTable.SetColumnSpan(dailyLimitButtons, 5);
+        daysTable.Controls.Add(dailyLimitButtons, 0, 9);
+
         _tabPageDailyLimits.Controls.Add(daysTable);
 
         _appLimitSettingsControl = new AppLimitSettingsControl
         {
-            Dock = DockStyle.Fill
+            Dock = DockStyle.Fill,
+            SettingsManager = _settingsManager,
+            TimeTracker = _timeTracker
         };
         _tabPageAppLimits.Controls.Add(_appLimitSettingsControl);
 
@@ -408,34 +451,6 @@ public class SettingsForm : Form
         _buttonOK.FlatAppearance.BorderSize = 0;
         _buttonOK.Click += new EventHandler(OnOKClick);
         okCancelPanel.Controls.Add(_buttonOK);
-
-        _buttonApplyToAll = new Button
-        {
-            Font = new Font("Segoe UI", 11f),
-            Size = new Size(180, 45),
-            BackColor = Color.FromArgb(0, 122, 204),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(5),
-            AccessibleName = "ApplyToAllButton"
-        };
-        _buttonApplyToAll.FlatAppearance.BorderSize = 0;
-        _buttonApplyToAll.Click += new EventHandler(OnApplyToAllClick);
-        okCancelPanel.Controls.Add(_buttonApplyToAll);
-
-        _buttonChangePassword = new Button
-        {
-            Font = new Font("Segoe UI", 11f),
-            Size = new Size(180, 45),
-            BackColor = Color.FromArgb(0, 122, 204),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(5),
-            AccessibleName = "ChangePasswordButton"
-        };
-        _buttonChangePassword.FlatAppearance.BorderSize = 0;
-        _buttonChangePassword.Click += new EventHandler(OnChangePasswordClick);
-        okCancelPanel.Controls.Add(_buttonChangePassword);
 
         mainLayout.Controls.Add(okCancelPanel, 0, 1);
 

@@ -38,28 +38,40 @@ public class InstallWizardForm : Form
 
     private void CheckPreconditions()
     {
+        bool serviceInstalled = TaskSchedulerManager.IsServiceInstalled();
+        bool taskInstalled = TaskSchedulerManager.IsTaskInstalled();
+
         _checkBoxProtectionService.Enabled = File.Exists(_protectionServicePath);
         _checkBoxWatchdog.Enabled = File.Exists(_watchdogPath);
 
-        if (!_checkBoxProtectionService.Enabled)
+        if (serviceInstalled)
         {
             _checkBoxProtectionService.Checked = false;
-            _checkBoxProtectionService.Text = "保护服务 (文件未找到)";
+            _checkBoxProtectionService.Text = LanguageManager.GetString("ProtectionService") + " (" + LanguageManager.GetString("AlreadyInstalled") + ")";
+        }
+        else if (!_checkBoxProtectionService.Enabled)
+        {
+            _checkBoxProtectionService.Checked = false;
+            _checkBoxProtectionService.Text = LanguageManager.GetString("ProtectionService") + " (" + LanguageManager.GetString("FileNotFound") + ")";
+        }
+
+        if (taskInstalled)
+        {
+            _checkBoxScheduledTask.Checked = false;
+            _checkBoxScheduledTask.Text = LanguageManager.GetString("ScheduledTask") + " (" + LanguageManager.GetString("AlreadyInstalled") + ")";
         }
 
         if (!_checkBoxWatchdog.Enabled)
         {
             _checkBoxWatchdog.Checked = false;
-            _checkBoxWatchdog.Text = "守护进程 (文件未找到)";
+            _checkBoxWatchdog.Text = LanguageManager.GetString("WatchdogProcess") + " (" + LanguageManager.GetString("FileNotFound") + ")";
         }
-
-        _checkBoxScheduledTask.Checked = true;
     }
 
     private void InitializeComponent()
     {
         Text = LanguageManager.GetString("AppTitle");
-        Size = new Size(500, 420);
+        Size = new Size(800, 650);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -68,71 +80,112 @@ public class InstallWizardForm : Form
 
         _centerPanel = new Panel
         {
-            Size = new Size(460, 360),
+            Size = new Size(760, 590),
             BackColor = Color.FromArgb(50, 50, 50),
-            Location = new Point((Width - 460) / 2, 20)
+            Location = new Point((Width - 760) / 2, 20)
         };
 
         _labelTitle = new Label
         {
             Text = LanguageManager.GetString("InstallationWizard"),
-            Font = new Font("Segoe UI", 16f, FontStyle.Bold),
+            Font = new Font("Segoe UI", 20f, FontStyle.Bold),
             ForeColor = Color.White,
             TextAlign = ContentAlignment.MiddleCenter,
             Location = new Point(0, 20),
-            Size = new Size(460, 40)
+            Size = new Size(760, 50)
         };
         _centerPanel.Controls.Add(_labelTitle);
 
         _labelDescription = new Label
         {
             Text = LanguageManager.GetString("InstallationWizardDescription"),
-            Font = new Font("Segoe UI", 10f),
+            Font = new Font("Segoe UI", 12f),
             ForeColor = Color.FromArgb(200, 200, 200),
             TextAlign = ContentAlignment.TopLeft,
-            Location = new Point(20, 70),
-            Size = new Size(420, 60),
+            Location = new Point(30, 80),
+            Size = new Size(700, 70),
             AutoSize = false
         };
         _centerPanel.Controls.Add(_labelDescription);
 
+        int yPos = 170;
+
         _checkBoxProtectionService = new CheckBox
         {
             Text = LanguageManager.GetString("ProtectionService"),
-            Font = new Font("Segoe UI", 12f),
+            Font = new Font("Segoe UI", 13f),
             ForeColor = Color.White,
-            Location = new Point(30, 140),
-            Size = new Size(400, 30),
+            Location = new Point(30, yPos),
+            Size = new Size(700, 40),
             Checked = true
         };
         _centerPanel.Controls.Add(_checkBoxProtectionService);
 
+        Label labelProtectionServiceDesc = new Label
+        {
+            Text = LanguageManager.GetString("ProtectionServiceDescription"),
+            Font = new Font("Segoe UI", 11f),
+            ForeColor = Color.FromArgb(180, 180, 180),
+            Location = new Point(50, yPos + 40),
+            Size = new Size(680, 35),
+            AutoSize = false
+        };
+        _centerPanel.Controls.Add(labelProtectionServiceDesc);
+
+        yPos += 90;
+
         _checkBoxWatchdog = new CheckBox
         {
             Text = LanguageManager.GetString("WatchdogProcess"),
-            Font = new Font("Segoe UI", 12f),
+            Font = new Font("Segoe UI", 13f),
             ForeColor = Color.White,
-            Location = new Point(30, 180),
-            Size = new Size(400, 30),
+            Location = new Point(30, yPos),
+            Size = new Size(700, 40),
             Checked = true
         };
         _centerPanel.Controls.Add(_checkBoxWatchdog);
 
+        Label labelWatchdogDesc = new Label
+        {
+            Text = LanguageManager.GetString("WatchdogProcessDescription"),
+            Font = new Font("Segoe UI", 11f),
+            ForeColor = Color.FromArgb(180, 180, 180),
+            Location = new Point(50, yPos + 40),
+            Size = new Size(680, 35),
+            AutoSize = false
+        };
+        _centerPanel.Controls.Add(labelWatchdogDesc);
+
+        yPos += 90;
+
         _checkBoxScheduledTask = new CheckBox
         {
             Text = LanguageManager.GetString("ScheduledTask"),
-            Font = new Font("Segoe UI", 12f),
+            Font = new Font("Segoe UI", 13f),
             ForeColor = Color.White,
-            Location = new Point(30, 220),
-            Size = new Size(400, 30),
+            Location = new Point(30, yPos),
+            Size = new Size(700, 40),
             Checked = true
         };
         _centerPanel.Controls.Add(_checkBoxScheduledTask);
 
+        Label labelScheduledTaskDesc = new Label
+        {
+            Text = LanguageManager.GetString("ScheduledTaskDescription"),
+            Font = new Font("Segoe UI", 11f),
+            ForeColor = Color.FromArgb(180, 180, 180),
+            Location = new Point(50, yPos + 40),
+            Size = new Size(680, 35),
+            AutoSize = false
+        };
+        _centerPanel.Controls.Add(labelScheduledTaskDesc);
+
+        yPos += 95;
+
         _progressBar = new ProgressBar
         {
-            Location = new Point(30, 260),
-            Size = new Size(400, 20),
+            Location = new Point(30, yPos),
+            Size = new Size(700, 25),
             Style = ProgressBarStyle.Marquee,
             Visible = false
         };
@@ -141,21 +194,23 @@ public class InstallWizardForm : Form
         _labelStatus = new Label
         {
             Text = "",
-            Font = new Font("Segoe UI", 10f),
+            Font = new Font("Segoe UI", 11f),
             ForeColor = Color.FromArgb(100, 255, 100),
             TextAlign = ContentAlignment.MiddleCenter,
-            Location = new Point(0, 290),
-            Size = new Size(460, 20),
+            Location = new Point(0, yPos + 35),
+            Size = new Size(760, 30),
             Visible = false
         };
         _centerPanel.Controls.Add(_labelStatus);
 
+        yPos += 85;
+
         _buttonInstall = new Button
         {
             Text = LanguageManager.GetString("Install"),
-            Font = new Font("Segoe UI", 12f),
-            Size = new Size(140, 40),
-            Location = new Point(80, 320),
+            Font = new Font("Segoe UI", 13f),
+            Size = new Size(160, 50),
+            Location = new Point(200, yPos),
             BackColor = Color.FromArgb(0, 122, 204),
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
@@ -168,9 +223,9 @@ public class InstallWizardForm : Form
         _buttonSkip = new Button
         {
             Text = LanguageManager.GetString("Skip"),
-            Font = new Font("Segoe UI", 12f),
-            Size = new Size(140, 40),
-            Location = new Point(240, 320),
+            Font = new Font("Segoe UI", 13f),
+            Size = new Size(160, 50),
+            Location = new Point(400, yPos),
             BackColor = Color.FromArgb(80, 80, 80),
             ForeColor = Color.White,
             FlatStyle = FlatStyle.Flat,
