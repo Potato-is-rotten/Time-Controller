@@ -6,6 +6,12 @@ ProtectionService/obj/
 WatchdogMonitor/bin/
 WatchdogMonitor/obj/
 
+# WPF projects
+ScreenTimeController.Core/bin/
+ScreenTimeController.Core/obj/
+ScreenTimeController.Wpf/bin/
+ScreenTimeController.Wpf/obj/
+
 # Old publish folders
 output_v*/
 publish_*/
