@@ -1,0 +1,12 @@
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.csproj.AssemblyReference.cache
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.GeneratedMSBuildEditorConfig.editorconfig
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.AssemblyInfoInputs.cache
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.AssemblyInfo.cs
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.csproj.CoreCompileInputs.cache
+D:\workspace\REWRITE\ScreenTimeController.Core\bin\Release\net10.0-windows\ScreenTimeController.Core.deps.json
+D:\workspace\REWRITE\ScreenTimeController.Core\bin\Release\net10.0-windows\ScreenTimeController.Core.dll
+D:\workspace\REWRITE\ScreenTimeController.Core\bin\Release\net10.0-windows\ScreenTimeController.Core.pdb
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.dll
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\refint\ScreenTimeController.Core.dll
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ScreenTimeController.Core.pdb
+D:\workspace\REWRITE\ScreenTimeController.Core\obj\Release\net10.0-windows\ref\ScreenTimeController.Core.dll

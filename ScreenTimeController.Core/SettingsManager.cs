@@ -1,0 +1,536 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Windows.Forms;
+
+namespace ScreenTimeController;
+
+public class SettingsManager
+{
+    private const string SettingsFileName = "settings.txt";
+    private readonly string _settingsFilePath;
+    private readonly string _backupFilePath;
+    private readonly object _lockObject = new();
+
+    private int _sundayLimitMinutes = 120;
+    private int _mondayLimitMinutes = 120;
+    private int _tuesdayLimitMinutes = 120;
+    private int _wednesdayLimitMinutes = 120;
+    private int _thursdayLimitMinutes = 120;
+    private int _fridayLimitMinutes = 120;
+    private int _saturdayLimitMinutes = 120;
+    private string _passwordHash = "";
+    private Language _language = Language.English;
+    private bool _enablePasswordLock = true;
+    private LockMode _currentLockMode = LockMode.FullScreen;
+    private List<AppTimeLimit> _appTimeLimits = new();
+
+    public TimeSpan SundayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_sundayLimitMinutes); } }
+        set { lock (_lockObject) { _sundayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan MondayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_mondayLimitMinutes); } }
+        set { lock (_lockObject) { _mondayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan TuesdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_tuesdayLimitMinutes); } }
+        set { lock (_lockObject) { _tuesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan WednesdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_wednesdayLimitMinutes); } }
+        set { lock (_lockObject) { _wednesdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan ThursdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_thursdayLimitMinutes); } }
+        set { lock (_lockObject) { _thursdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan FridayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_fridayLimitMinutes); } }
+        set { lock (_lockObject) { _fridayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public TimeSpan SaturdayLimit
+    {
+        get { lock (_lockObject) { return TimeSpan.FromMinutes(_saturdayLimitMinutes); } }
+        set { lock (_lockObject) { _saturdayLimitMinutes = Math.Min((int)value.TotalMinutes, 1440); } }
+    }
+
+    public Language Language
+    {
+        get { lock (_lockObject) { return _language; } }
+        set
+        {
+            lock (_lockObject) { _language = value; }
+            LanguageManager.CurrentLanguage = value;
+        }
+    }
+
+    public bool EnablePasswordLock
+    {
+        get { lock (_lockObject) { return _enablePasswordLock; } }
+        set { lock (_lockObject) { _enablePasswordLock = value; } }
+    }
+
+    public LockMode CurrentLockMode
+    {
+        get { lock (_lockObject) { return _currentLockMode; } }
+        set { lock (_lockObject) { _currentLockMode = value; } }
+    }
+
+    public List<AppTimeLimit> AppTimeLimits
+    {
+        get { lock (_lockObject) { return new List<AppTimeLimit>(_appTimeLimits); } }
+        set { lock (_lockObject) { _appTimeLimits = value ?? new List<AppTimeLimit>(); } }
+    }
+
+    public void AddAppTimeLimit(AppTimeLimit limit)
+    {
+        if (limit == null || string.IsNullOrEmpty(limit.AppIdentifier))
+        {
+            return;
+        }
+        
+        lock (_lockObject)
+        {
+            var existing = _appTimeLimits.Find(a => a.AppIdentifier == limit.AppIdentifier);
+            if (existing != null)
+            {
+                existing.DisplayName = limit.DisplayName;
+                existing.DailyLimit = limit.DailyLimit;
+                existing.IsEnabled = limit.IsEnabled;
+                existing.IconPath = limit.IconPath;
+            }
+            else
+            {
+                _appTimeLimits.Add(limit.Clone());
+            }
+        }
+        SaveSettings();
+    }
+
+    public void RemoveAppTimeLimit(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return;
+        }
+        
+        lock (_lockObject)
+        {
+            _appTimeLimits.RemoveAll(a => a.AppIdentifier == appIdentifier);
+        }
+        SaveSettings();
+    }
+
+    public AppTimeLimit? GetAppTimeLimit(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return null;
+        }
+        
+        lock (_lockObject)
+        {
+            var limit = _appTimeLimits.Find(a => a.AppIdentifier == appIdentifier);
+            return limit?.Clone();
+        }
+    }
+
+    public TimeSpan GetDailyLimit()
+    {
+        return DateTime.Today.DayOfWeek switch
+        {
+            DayOfWeek.Sunday => SundayLimit,
+            DayOfWeek.Monday => MondayLimit,
+            DayOfWeek.Tuesday => TuesdayLimit,
+            DayOfWeek.Wednesday => WednesdayLimit,
+            DayOfWeek.Thursday => ThursdayLimit,
+            DayOfWeek.Friday => FridayLimit,
+            DayOfWeek.Saturday => SaturdayLimit,
+            _ => MondayLimit,
+        };
+    }
+
+    public SettingsManager()
+    {
+        _settingsFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings.txt");
+        _backupFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController", "settings_backup.txt");
+        DataProtectionManager.EnsureDirectoryExists();
+        LoadSettings();
+    }
+
+    private void EnsureDirectory()
+    {
+        try
+        {
+            string? dir = Path.GetDirectoryName(_settingsFilePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+        catch { }
+    }
+
+    private string? SafeReadFile(string filePath)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    return null;
+                }
+                using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var sr = new StreamReader(fs, Encoding.UTF8);
+                return sr.ReadToEnd();
+            }
+            catch (IOException)
+            {
+                System.Threading.Thread.Sleep(50);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private void SafeWriteFile(string filePath, string content)
+    {
+        string? directory = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+        {
+            try { Directory.CreateDirectory(directory); } catch { }
+        }
+
+        for (int attempt = 0; attempt < 5; attempt++)
+        {
+            try
+            {
+                string tempFile = filePath + ".tmp";
+                File.WriteAllText(tempFile, content, Encoding.UTF8);
+                
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+                
+                File.Move(tempFile, filePath);
+                
+                string verify = File.ReadAllText(filePath, Encoding.UTF8);
+                if (verify == content)
+                {
+                    return;
+                }
+            }
+            catch (IOException)
+            {
+                Thread.Sleep(50);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                Thread.Sleep(50);
+            }
+            catch
+            {
+                return;
+            }
+        }
+    }
+
+    private void LoadSettings()
+    {
+        lock (_lockObject)
+        {
+            try
+            {
+                string? content = DataProtectionManager.LoadWithProtection(SettingsFileName);
+
+                if (!string.IsNullOrEmpty(content))
+                {
+                    ParseSettings(content);
+                }
+                else
+                {
+                    if (DataProtectionManager.AreAllBackupsLost(SettingsFileName))
+                    {
+                        MessageBox.Show(
+                            LanguageManager.GetString("SettingsLostDescription"),
+                            LanguageManager.GetString("SettingsLost"),
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        ResetToDefaults();
+                    }
+                    else
+                    {
+                        SaveSettings();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        LanguageManager.CurrentLanguage = _language;
+    }
+
+    private void ParseSettings(string content)
+    {
+        string[] lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (string line in lines)
+        {
+            string[] parts = line.Split(new[] { '=' }, 2);
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            string key = parts[0].Trim();
+            string value = parts[1].Trim();
+
+            try
+            {
+                switch (key)
+                {
+                    case "SundayLimit":
+                        if (int.TryParse(value, out int sun)) _sundayLimitMinutes = sun;
+                        break;
+                    case "MondayLimit":
+                        if (int.TryParse(value, out int mon)) _mondayLimitMinutes = mon;
+                        break;
+                    case "TuesdayLimit":
+                        if (int.TryParse(value, out int tue)) _tuesdayLimitMinutes = tue;
+                        break;
+                    case "WednesdayLimit":
+                        if (int.TryParse(value, out int wed)) _wednesdayLimitMinutes = wed;
+                        break;
+                    case "ThursdayLimit":
+                        if (int.TryParse(value, out int thu)) _thursdayLimitMinutes = thu;
+                        break;
+                    case "FridayLimit":
+                        if (int.TryParse(value, out int fri)) _fridayLimitMinutes = fri;
+                        break;
+                    case "SaturdayLimit":
+                        if (int.TryParse(value, out int sat)) _saturdayLimitMinutes = sat;
+                        break;
+                    case "PasswordHash":
+                        if (!string.IsNullOrEmpty(value))
+                        {
+                            _passwordHash = value;
+                        }
+                        break;
+                    case "Language":
+                        if (int.TryParse(value, out int lang) && Enum.IsDefined(typeof(Language), lang))
+                        {
+                            _language = (Language)lang;
+                        }
+                        break;
+                    case "EnablePasswordLock":
+                        if (bool.TryParse(value, out bool enableLock))
+                        {
+                            _enablePasswordLock = enableLock;
+                        }
+                        break;
+                    case "CurrentLockMode":
+                        if (int.TryParse(value, out int lockMode) && Enum.IsDefined(typeof(LockMode), lockMode))
+                        {
+                            _currentLockMode = (LockMode)lockMode;
+                        }
+                        break;
+                    case "AppTimeLimits":
+                        ParseAppTimeLimits(value);
+                        break;
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void ParseAppTimeLimits(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return;
+        }
+
+        try
+        {
+            _appTimeLimits.Clear();
+            string[] apps = value.Split(new[] { ";;" }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string app in apps)
+            {
+                string[] fields = app.Split(new[] { "::" }, StringSplitOptions.None);
+                if (fields.Length >= 4)
+                {
+                    var limit = new AppTimeLimit
+                    {
+                        AppIdentifier = Uri.UnescapeDataString(fields[0]),
+                        DisplayName = Uri.UnescapeDataString(fields[1]),
+                        DailyLimit = TimeSpan.FromMinutes(double.Parse(fields[2], System.Globalization.CultureInfo.InvariantCulture)),
+                        IsEnabled = bool.Parse(fields[3])
+                    };
+                    if (fields.Length >= 5 && !string.IsNullOrEmpty(fields[4]))
+                    {
+                        limit.IconPath = Uri.UnescapeDataString(fields[4]);
+                    }
+                    _appTimeLimits.Add(limit);
+                }
+            }
+        }
+        catch { }
+    }
+
+    private string SerializeAppTimeLimits()
+    {
+        if (_appTimeLimits.Count == 0)
+        {
+            return "";
+        }
+
+        var parts = new List<string>();
+        foreach (var limit in _appTimeLimits)
+        {
+            string part = $"{Uri.EscapeDataString(limit.AppIdentifier)}::" +
+                          $"{Uri.EscapeDataString(limit.DisplayName)}::" +
+                          $"{limit.DailyLimit.TotalMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)}::" +
+                          $"{limit.IsEnabled}::" +
+                          $"{Uri.EscapeDataString(limit.IconPath ?? "")}";
+            parts.Add(part);
+        }
+        return string.Join(";;", parts);
+    }
+
+    public void SaveSettings()
+    {
+        try
+        {
+            EnsureDirectory();
+
+            string content;
+            lock (_lockObject)
+            {
+                StringBuilder sb = new();
+                sb.AppendLine($"SundayLimit={_sundayLimitMinutes}");
+                sb.AppendLine($"MondayLimit={_mondayLimitMinutes}");
+                sb.AppendLine($"TuesdayLimit={_tuesdayLimitMinutes}");
+                sb.AppendLine($"WednesdayLimit={_wednesdayLimitMinutes}");
+                sb.AppendLine($"ThursdayLimit={_thursdayLimitMinutes}");
+                sb.AppendLine($"FridayLimit={_fridayLimitMinutes}");
+                sb.AppendLine($"SaturdayLimit={_saturdayLimitMinutes}");
+                sb.AppendLine($"PasswordHash={_passwordHash}");
+                sb.AppendLine($"Language={(int)_language}");
+                sb.AppendLine($"EnablePasswordLock={_enablePasswordLock}");
+                sb.AppendLine($"CurrentLockMode={(int)_currentLockMode}");
+                sb.Append($"AppTimeLimits={SerializeAppTimeLimits()}");
+                content = sb.ToString();
+            }
+
+            if (File.Exists(_settingsFilePath))
+            {
+                try
+                {
+                    File.Copy(_settingsFilePath, _backupFilePath, true);
+                }
+                catch { }
+            }
+
+            DataProtectionManager.SaveFast(SettingsFileName, content);
+        }
+        catch { }
+    }
+
+    public bool HasPassword()
+    {
+        lock (_lockObject)
+        {
+            return !string.IsNullOrEmpty(_passwordHash);
+        }
+    }
+
+    public bool VerifyPassword(string password)
+    {
+        try
+        {
+            lock (_lockObject)
+            {
+                if (string.IsNullOrEmpty(_passwordHash))
+                {
+                    return true;
+                }
+                if (string.IsNullOrEmpty(password))
+                {
+                    return false;
+                }
+                string hash = HashPassword(password);
+                return _passwordHash == hash;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public void SetPassword(string password)
+    {
+        lock (_lockObject)
+        {
+            if (string.IsNullOrEmpty(password))
+            {
+                _passwordHash = "";
+            }
+            else
+            {
+                _passwordHash = HashPassword(password);
+            }
+        }
+        SaveSettings();
+    }
+
+    private static string HashPassword(string password)
+    {
+        if (string.IsNullOrEmpty(password))
+        {
+            return "";
+        }
+        using SHA256 sha = SHA256.Create();
+        return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(password)));
+    }
+
+    public void ResetToDefaults()
+    {
+        lock (_lockObject)
+        {
+            _sundayLimitMinutes = 120;
+            _mondayLimitMinutes = 120;
+            _tuesdayLimitMinutes = 120;
+            _wednesdayLimitMinutes = 120;
+            _thursdayLimitMinutes = 120;
+            _fridayLimitMinutes = 120;
+            _saturdayLimitMinutes = 120;
+            _passwordHash = "";
+            _language = Language.SimplifiedChinese;
+            _enablePasswordLock = false;
+            _currentLockMode = LockMode.FullScreen;
+            _appTimeLimits.Clear();
+        }
+        SaveSettings();
+    }
+}

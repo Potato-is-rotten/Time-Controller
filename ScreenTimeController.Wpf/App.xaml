@@ -1,0 +1,12 @@
+﻿﻿﻿﻿﻿﻿﻿<Application x:Class="ScreenTimeController.Wpf.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:system="clr-namespace:System;assembly=mscorlib"
+             xmlns:converters="clr-namespace:ScreenTimeController.Wpf.Converters">
+    <Application.Resources>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+        <converters:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <converters:BoolToGreenRedConverter x:Key="BoolToGreenRedConverter"/>
+    </Application.Resources>
+</Application>
