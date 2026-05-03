@@ -6,6 +6,16 @@ ProtectionService/obj/
 WatchdogMonitor/bin/
 WatchdogMonitor/obj/
 
+# WPF projects
+ScreenTimeController.Core/bin/
+ScreenTimeController.Core/obj/
+ScreenTimeController.Wpf/bin/
+ScreenTimeController.Wpf/obj/
+
+# Test project
+ScreenTimeController.Tests/bin/
+ScreenTimeController.Tests/obj/
+
 # Old publish folders
 output_v*/
 publish_*/
@@ -29,27 +39,3 @@ log.txt
 *.cache
 Thumbs.db
 .DS_Store
-
-# AI协作系统临时文件
-work_together/*/work_logs/*.txt
-work_together/*/.ssh/
-work_together/daily_announcement.txt
-work_together/team_startup.txt
-work_together/user_requirements.txt
-work_together/internal_requirements.txt
-work_together/project_progress.txt
-work_together/message_queue.txt
-work_together/*.txt
-
-# 但保留配置文件
-!work_together/current_date.txt
-!work_together/project_calendar.txt
-!work_together/GitFlow工作流讲解.md
-
-# AI成员的本地配置
-work_together/*/.git/config
-
-# 其他
-current_date.txt
-GitFlow工作流详解.md
-project_calendar.txt
