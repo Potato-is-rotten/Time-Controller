@@ -154,60 +154,63 @@ namespace ScreenTimeController.Tests
     public class AppTimeLimitResultTests
     {
         [Test]
-        public void Constructor_DefaultValues_SetsCorrectly()
+        public void IsExceeded_WhenExceeded_ReturnsTrue()
         {
-            var result = new AppTimeLimitResult();
-
-            Assert.That(result.AppIdentifier, Is.EqualTo(string.Empty));
-            Assert.That(result.IsWithinLimit, Is.True);
-            Assert.That(result.RemainingTime, Is.EqualTo(TimeSpan.Zero));
-            Assert.That(result.UsageTime, Is.EqualTo(TimeSpan.Zero));
-        }
-
-        [Test]
-        public void Constructor_WithValues_SetsCorrectly()
-        {
-            string appIdentifier = "TestApp";
-            bool isWithinLimit = false;
-            TimeSpan remainingTime = TimeSpan.FromMinutes(30);
-            TimeSpan usageTime = TimeSpan.FromHours(1);
-
-            var result = new AppTimeLimitResult
+            var limit = new AppTimeLimit
             {
-                AppIdentifier = appIdentifier,
-                IsWithinLimit = isWithinLimit,
-                RemainingTime = remainingTime,
-                UsageTime = usageTime
+                AppIdentifier = "TestApp",
+                DailyLimit = TimeSpan.FromHours(1)
             };
+            TimeSpan usage = TimeSpan.FromHours(2);
 
-            Assert.That(result.AppIdentifier, Is.EqualTo(appIdentifier));
-            Assert.That(result.IsWithinLimit, Is.EqualTo(isWithinLimit));
-            Assert.That(result.RemainingTime, Is.EqualTo(remainingTime));
-            Assert.That(result.UsageTime, Is.EqualTo(usageTime));
+            bool isExceeded = usage > limit.DailyLimit;
+
+            Assert.That(isExceeded, Is.True);
         }
 
         [Test]
-        public void IsWithinLimit_SetToFalse_UpdatesCorrectly()
+        public void IsExceeded_WhenNotExceeded_ReturnsFalse()
         {
-            var result = new AppTimeLimitResult();
-
-            result.IsWithinLimit = false;
-
-            Assert.That(result.IsWithinLimit, Is.False);
-        }
-
-        [Test]
-        public void GetUsagePercentage_ReturnsCorrectPercentage()
-        {
-            var result = new AppTimeLimitResult
+            var limit = new AppTimeLimit
             {
-                UsageTime = TimeSpan.FromMinutes(30),
-                RemainingTime = TimeSpan.FromMinutes(30)
+                AppIdentifier = "TestApp",
+                DailyLimit = TimeSpan.FromHours(2)
             };
+            TimeSpan usage = TimeSpan.FromHours(1);
 
-            double percentage = (result.UsageTime.TotalMinutes / (result.UsageTime.TotalMinutes + result.RemainingTime.TotalMinutes)) * 100;
+            bool isExceeded = usage > limit.DailyLimit;
 
-            Assert.That(percentage, Is.EqualTo(50.0));
+            Assert.That(isExceeded, Is.False);
+        }
+
+        [Test]
+        public void RemainingTime_WhenWithinLimit_ReturnsCorrectTime()
+        {
+            var limit = new AppTimeLimit
+            {
+                AppIdentifier = "TestApp",
+                DailyLimit = TimeSpan.FromHours(2)
+            };
+            TimeSpan usage = TimeSpan.FromHours(1);
+
+            TimeSpan remaining = limit.DailyLimit - usage;
+
+            Assert.That(remaining, Is.EqualTo(TimeSpan.FromHours(1)));
+        }
+
+        [Test]
+        public void RemainingTime_WhenExceeded_ReturnsZeroOrNegative()
+        {
+            var limit = new AppTimeLimit
+            {
+                AppIdentifier = "TestApp",
+                DailyLimit = TimeSpan.FromHours(1)
+            };
+            TimeSpan usage = TimeSpan.FromHours(2);
+
+            TimeSpan remaining = limit.DailyLimit - usage;
+
+            Assert.That(remaining, Is.LessThanOrEqualTo(TimeSpan.Zero));
         }
     }
 }

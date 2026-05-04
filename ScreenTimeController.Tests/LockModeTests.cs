@@ -6,21 +6,15 @@ namespace ScreenTimeController.Tests
     public class LockModeTests
     {
         [Test]
-        public void LockMode_None_HasCorrectValue()
+        public void LockMode_FullScreen_IsDefined()
         {
-            Assert.That(LockMode.None, Is.EqualTo(0));
+            Assert.That(System.Enum.IsDefined(typeof(LockMode), LockMode.FullScreen), Is.True);
         }
 
         [Test]
-        public void LockMode_FullScreen_HasCorrectValue()
+        public void LockMode_PerApp_IsDefined()
         {
-            Assert.That(LockMode.FullScreen, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void LockMode_AppLock_HasCorrectValue()
-        {
-            Assert.That(LockMode.AppLock, Is.EqualTo(2));
+            Assert.That(System.Enum.IsDefined(typeof(LockMode), LockMode.PerApp), Is.True);
         }
 
         [Test]
@@ -28,28 +22,15 @@ namespace ScreenTimeController.Tests
         {
             var values = System.Enum.GetValues<LockMode>();
 
-            Assert.That(values, Has.Length.EqualTo(3));
-            Assert.That(values, Contains.Item(LockMode.None));
+            Assert.That(values, Has.Length.EqualTo(2));
             Assert.That(values, Contains.Item(LockMode.FullScreen));
-            Assert.That(values, Contains.Item(LockMode.AppLock));
-        }
-
-        [Test]
-        public void LockMode_CanConvertToInt()
-        {
-            int noneValue = (int)LockMode.None;
-            int fullScreenValue = (int)LockMode.FullScreen;
-            int appLockValue = (int)LockMode.AppLock;
-
-            Assert.That(noneValue, Is.EqualTo(0));
-            Assert.That(fullScreenValue, Is.EqualTo(1));
-            Assert.That(appLockValue, Is.EqualTo(2));
+            Assert.That(values, Contains.Item(LockMode.PerApp));
         }
 
         [Test]
         public void LockMode_CanConvertFromInt()
         {
-            LockMode mode = (LockMode)1;
+            LockMode mode = (LockMode)0;
 
             Assert.That(mode, Is.EqualTo(LockMode.FullScreen));
         }

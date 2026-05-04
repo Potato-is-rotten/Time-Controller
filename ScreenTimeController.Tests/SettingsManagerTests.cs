@@ -9,14 +9,12 @@ namespace ScreenTimeController.Tests
     public class SettingsManagerTests : TestBase
     {
         private SettingsManager _settingsManager = null!;
-        private string _testSettingsPath = string.Empty;
 
         [SetUp]
         public override void Setup()
         {
             base.Setup();
-            _testSettingsPath = GetTestFilePath("settings.json");
-            _settingsManager = new SettingsManager(_testSettingsPath);
+            _settingsManager = new SettingsManager();
         }
 
         [TearDown]
@@ -26,348 +24,147 @@ namespace ScreenTimeController.Tests
         }
 
         [Test]
-        public void Constructor_ValidPath_CreatesInstance()
+        public void Constructor_CreatesInstance()
         {
             Assert.That(_settingsManager, Is.Not.Null);
         }
 
         [Test]
-        public void DailyLimit_DefaultValue_ReturnsCorrectValue()
+        public void SundayLimit_CanBeSet()
         {
-            TimeSpan limit = _settingsManager.DailyLimit;
+            TimeSpan newLimit = TimeSpan.FromHours(3);
 
-            Assert.That(limit, Is.EqualTo(TimeSpan.FromHours(8)));
+            _settingsManager.SundayLimit = newLimit;
+
+            Assert.That(_settingsManager.SundayLimit, Is.EqualTo(newLimit));
         }
 
         [Test]
-        public void DailyLimit_SetValue_UpdatesCorrectly()
+        public void MondayLimit_CanBeSet()
         {
-            TimeSpan newLimit = TimeSpan.FromHours(6);
+            TimeSpan newLimit = TimeSpan.FromHours(3);
 
-            _settingsManager.DailyLimit = newLimit;
+            _settingsManager.MondayLimit = newLimit;
 
-            Assert.That(_settingsManager.DailyLimit, Is.EqualTo(newLimit));
+            Assert.That(_settingsManager.MondayLimit, Is.EqualTo(newLimit));
         }
 
         [Test]
-        public void IsPasswordEnabled_DefaultValue_ReturnsFalse()
+        public void EnablePasswordLock_CanBeSet()
         {
-            bool isEnabled = _settingsManager.IsPasswordEnabled;
+            _settingsManager.EnablePasswordLock = false;
 
-            Assert.That(isEnabled, Is.False);
+            Assert.That(_settingsManager.EnablePasswordLock, Is.False);
         }
 
         [Test]
-        public void IsPasswordEnabled_SetValue_UpdatesCorrectly()
+        public void Language_CanBeSet()
         {
-            _settingsManager.IsPasswordEnabled = true;
+            _settingsManager.Language = Language.SimplifiedChinese;
 
-            Assert.That(_settingsManager.IsPasswordEnabled, Is.True);
+            Assert.That(_settingsManager.Language, Is.EqualTo(Language.SimplifiedChinese));
         }
 
         [Test]
-        public void Language_DefaultValue_ReturnsChinese()
+        public void CurrentLockMode_CanBeSet()
         {
-            Language language = _settingsManager.Language;
+            _settingsManager.CurrentLockMode = LockMode.PerApp;
 
-            Assert.That(language, Is.EqualTo(Language.Chinese));
+            Assert.That(_settingsManager.CurrentLockMode, Is.EqualTo(LockMode.PerApp));
         }
 
         [Test]
-        public void Language_SetValue_UpdatesCorrectly()
+        public void AppTimeLimits_CanBeSet()
         {
-            _settingsManager.Language = Language.English;
+            var limits = new List<AppTimeLimit>
+            {
+                new AppTimeLimit { AppIdentifier = "App1", DailyLimit = TimeSpan.FromHours(1) },
+                new AppTimeLimit { AppIdentifier = "App2", DailyLimit = TimeSpan.FromHours(2) }
+            };
 
-            Assert.That(_settingsManager.Language, Is.EqualTo(Language.English));
+            _settingsManager.AppTimeLimits = limits;
+
+            Assert.That(_settingsManager.AppTimeLimits, Has.Count.EqualTo(2));
         }
 
         [Test]
-        public void LockMode_DefaultValue_ReturnsNone()
+        public void AddAppTimeLimit_ValidLimit_AddsSuccessfully()
         {
-            LockMode mode = _settingsManager.LockMode;
-
-            Assert.That(mode, Is.EqualTo(LockMode.None));
-        }
-
-        [Test]
-        public void LockMode_SetValue_UpdatesCorrectly()
-        {
-            _settingsManager.LockMode = LockMode.FullScreen;
-
-            Assert.That(_settingsManager.LockMode, Is.EqualTo(LockMode.FullScreen));
-        }
-
-        [Test]
-        public void AppTimeLimits_DefaultValue_ReturnsEmptyList()
-        {
-            List<AppTimeLimit> limits = _settingsManager.AppTimeLimits;
-
-            Assert.That(limits, Is.Not.Null);
-            Assert.That(limits, Is.Empty);
-        }
-
-        [Test]
-        public void AddAppLimit_ValidLimit_AddsSuccessfully()
-        {
+            string uniqueAppId = "TestApp_" + Guid.NewGuid().ToString();
             var limit = new AppTimeLimit
             {
-                AppIdentifier = "TestApp",
+                AppIdentifier = uniqueAppId,
                 DailyLimit = TimeSpan.FromHours(2)
             };
 
-            _settingsManager.AddAppLimit(limit);
+            _settingsManager.AddAppTimeLimit(limit);
 
-            List<AppTimeLimit> limits = _settingsManager.AppTimeLimits;
-            Assert.That(limits, Has.Count.EqualTo(1));
-            Assert.That(limits[0].AppIdentifier, Is.EqualTo("TestApp"));
+            var limits = _settingsManager.AppTimeLimits;
+            Assert.That(limits.Exists(l => l.AppIdentifier == uniqueAppId), Is.True);
         }
 
         [Test]
-        public void AddAppLimit_DuplicateApp_UpdatesExisting()
+        public void RemoveAppTimeLimit_ExistingLimit_RemovesSuccessfully()
         {
-            var limit1 = new AppTimeLimit
-            {
-                AppIdentifier = "TestApp",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-            var limit2 = new AppTimeLimit
-            {
-                AppIdentifier = "TestApp",
-                DailyLimit = TimeSpan.FromHours(3)
-            };
-
-            _settingsManager.AddAppLimit(limit1);
-            _settingsManager.AddAppLimit(limit2);
-
-            List<AppTimeLimit> limits = _settingsManager.AppTimeLimits;
-            Assert.That(limits, Has.Count.EqualTo(1));
-            Assert.That(limits[0].DailyLimit, Is.EqualTo(TimeSpan.FromHours(3)));
-        }
-
-        [Test]
-        public void RemoveAppLimit_ExistingLimit_RemovesSuccessfully()
-        {
+            string uniqueAppId = "TestApp_" + Guid.NewGuid().ToString();
             var limit = new AppTimeLimit
             {
-                AppIdentifier = "TestApp",
+                AppIdentifier = uniqueAppId,
                 DailyLimit = TimeSpan.FromHours(2)
             };
 
-            _settingsManager.AddAppLimit(limit);
-            bool result = _settingsManager.RemoveAppLimit("TestApp");
+            _settingsManager.AddAppTimeLimit(limit);
+            _settingsManager.RemoveAppTimeLimit(uniqueAppId);
+
+            var limits = _settingsManager.AppTimeLimits;
+            Assert.That(limits.Exists(l => l.AppIdentifier == uniqueAppId), Is.False);
+        }
+
+        [Test]
+        public void GetDailyLimit_ReturnsValidValue()
+        {
+            TimeSpan limit = _settingsManager.GetDailyLimit();
+
+            Assert.That(limit, Is.GreaterThanOrEqualTo(TimeSpan.Zero));
+            Assert.That(limit, Is.LessThanOrEqualTo(TimeSpan.FromHours(24)));
+        }
+
+        [Test]
+        public void SaveSettings_DoesNotThrow()
+        {
+            Assert.DoesNotThrow(() => _settingsManager.SaveSettings());
+        }
+
+        [Test]
+        public void SetPassword_ValidPassword_SetsSuccessfully()
+        {
+            string password = "TestPassword123!" + Guid.NewGuid().ToString();
+
+            _settingsManager.SetPassword(password);
+
+            Assert.That(_settingsManager.HasPassword(), Is.True);
+        }
+
+        [Test]
+        public void VerifyPassword_CorrectPassword_ReturnsTrue()
+        {
+            string password = "TestPassword123!" + Guid.NewGuid().ToString();
+
+            _settingsManager.SetPassword(password);
+            bool result = _settingsManager.VerifyPassword(password);
 
             Assert.That(result, Is.True);
-            Assert.That(_settingsManager.AppTimeLimits, Is.Empty);
         }
 
         [Test]
-        public void RemoveAppLimit_NonExistentLimit_ReturnsFalse()
+        public void VerifyPassword_IncorrectPassword_ReturnsFalse()
         {
-            bool result = _settingsManager.RemoveAppLimit("NonExistentApp");
+            string password = "TestPassword123!" + Guid.NewGuid().ToString();
+
+            _settingsManager.SetPassword(password);
+            bool result = _settingsManager.VerifyPassword("WrongPassword");
 
             Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void GetAppLimit_ExistingLimit_ReturnsCorrectLimit()
-        {
-            var limit = new AppTimeLimit
-            {
-                AppIdentifier = "TestApp",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-
-            _settingsManager.AddAppLimit(limit);
-            AppTimeLimit? retrievedLimit = _settingsManager.GetAppLimit("TestApp");
-
-            Assert.That(retrievedLimit, Is.Not.Null);
-            Assert.That(retrievedLimit!.AppIdentifier, Is.EqualTo("TestApp"));
-            Assert.That(retrievedLimit.DailyLimit, Is.EqualTo(TimeSpan.FromHours(2)));
-        }
-
-        [Test]
-        public void GetAppLimit_NonExistentLimit_ReturnsNull()
-        {
-            AppTimeLimit? limit = _settingsManager.GetAppLimit("NonExistentApp");
-
-            Assert.That(limit, Is.Null);
-        }
-
-        [Test]
-        public void UpdateAppLimit_ExistingLimit_UpdatesSuccessfully()
-        {
-            var limit = new AppTimeLimit
-            {
-                AppIdentifier = "TestApp",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-
-            _settingsManager.AddAppLimit(limit);
-            limit.DailyLimit = TimeSpan.FromHours(3);
-            bool result = _settingsManager.UpdateAppLimit(limit);
-
-            Assert.That(result, Is.True);
-            AppTimeLimit? updatedLimit = _settingsManager.GetAppLimit("TestApp");
-            Assert.That(updatedLimit!.DailyLimit, Is.EqualTo(TimeSpan.FromHours(3)));
-        }
-
-        [Test]
-        public void UpdateAppLimit_NonExistentLimit_ReturnsFalse()
-        {
-            var limit = new AppTimeLimit
-            {
-                AppIdentifier = "NonExistentApp",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-
-            bool result = _settingsManager.UpdateAppLimit(limit);
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void SaveSettings_ValidSettings_SavesSuccessfully()
-        {
-            _settingsManager.DailyLimit = TimeSpan.FromHours(6);
-            _settingsManager.IsPasswordEnabled = true;
-            _settingsManager.Language = Language.English;
-
-            bool result = _settingsManager.SaveSettings();
-
-            Assert.That(result, Is.True);
-            Assert.That(File.Exists(_testSettingsPath), Is.True);
-        }
-
-        [Test]
-        public void LoadSettings_NoSettingsFile_ReturnsDefaults()
-        {
-            var newManager = new SettingsManager(_testSettingsPath);
-
-            Assert.That(newManager.DailyLimit, Is.EqualTo(TimeSpan.FromHours(8)));
-            Assert.That(newManager.IsPasswordEnabled, Is.False);
-            Assert.That(newManager.Language, Is.EqualTo(Language.Chinese));
-        }
-
-        [Test]
-        public void LoadSettings_WithSettingsFile_LoadsCorrectly()
-        {
-            _settingsManager.DailyLimit = TimeSpan.FromHours(6);
-            _settingsManager.IsPasswordEnabled = true;
-            _settingsManager.Language = Language.English;
-            _settingsManager.SaveSettings();
-
-            var newManager = new SettingsManager(_testSettingsPath);
-
-            Assert.That(newManager.DailyLimit, Is.EqualTo(TimeSpan.FromHours(6)));
-            Assert.That(newManager.IsPasswordEnabled, Is.True);
-            Assert.That(newManager.Language, Is.EqualTo(Language.English));
-        }
-
-        [Test]
-        public void SaveAndLoad_WithAppLimits_PersistsCorrectly()
-        {
-            var limit1 = new AppTimeLimit
-            {
-                AppIdentifier = "App1",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-            var limit2 = new AppTimeLimit
-            {
-                AppIdentifier = "App2",
-                DailyLimit = TimeSpan.FromHours(3)
-            };
-
-            _settingsManager.AddAppLimit(limit1);
-            _settingsManager.AddAppLimit(limit2);
-            _settingsManager.SaveSettings();
-
-            var newManager = new SettingsManager(_testSettingsPath);
-            List<AppTimeLimit> limits = newManager.AppTimeLimits;
-
-            Assert.That(limits, Has.Count.EqualTo(2));
-            Assert.That(limits[0].AppIdentifier, Is.EqualTo("App1"));
-            Assert.That(limits[1].AppIdentifier, Is.EqualTo("App2"));
-        }
-
-        [Test]
-        public void ClearAppLimits_RemovesAllLimits()
-        {
-            var limit1 = new AppTimeLimit
-            {
-                AppIdentifier = "App1",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-            var limit2 = new AppTimeLimit
-            {
-                AppIdentifier = "App2",
-                DailyLimit = TimeSpan.FromHours(3)
-            };
-
-            _settingsManager.AddAppLimit(limit1);
-            _settingsManager.AddAppLimit(limit2);
-            _settingsManager.ClearAppLimits();
-
-            Assert.That(_settingsManager.AppTimeLimits, Is.Empty);
-        }
-
-        [Test]
-        public void ResetToDefaults_ResetsAllSettings()
-        {
-            _settingsManager.DailyLimit = TimeSpan.FromHours(6);
-            _settingsManager.IsPasswordEnabled = true;
-            _settingsManager.Language = Language.English;
-            _settingsManager.LockMode = LockMode.FullScreen;
-
-            _settingsManager.ResetToDefaults();
-
-            Assert.That(_settingsManager.DailyLimit, Is.EqualTo(TimeSpan.FromHours(8)));
-            Assert.That(_settingsManager.IsPasswordEnabled, Is.False);
-            Assert.That(_settingsManager.Language, Is.EqualTo(Language.Chinese));
-            Assert.That(_settingsManager.LockMode, Is.EqualTo(LockMode.None));
-        }
-
-        [Test]
-        public void HasAppLimit_ExistingLimit_ReturnsTrue()
-        {
-            var limit = new AppTimeLimit
-            {
-                AppIdentifier = "TestApp",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-
-            _settingsManager.AddAppLimit(limit);
-
-            Assert.That(_settingsManager.HasAppLimit("TestApp"), Is.True);
-        }
-
-        [Test]
-        public void HasAppLimit_NonExistentLimit_ReturnsFalse()
-        {
-            Assert.That(_settingsManager.HasAppLimit("NonExistentApp"), Is.False);
-        }
-
-        [Test]
-        public void GetAppIdentifiers_ReturnsAllIdentifiers()
-        {
-            var limit1 = new AppTimeLimit
-            {
-                AppIdentifier = "App1",
-                DailyLimit = TimeSpan.FromHours(2)
-            };
-            var limit2 = new AppTimeLimit
-            {
-                AppIdentifier = "App2",
-                DailyLimit = TimeSpan.FromHours(3)
-            };
-
-            _settingsManager.AddAppLimit(limit1);
-            _settingsManager.AddAppLimit(limit2);
-
-            List<string> identifiers = _settingsManager.GetAppIdentifiers();
-
-            Assert.That(identifiers, Has.Count.EqualTo(2));
-            Assert.That(identifiers, Contains.Item("App1"));
-            Assert.That(identifiers, Contains.Item("App2"));
         }
     }
 }

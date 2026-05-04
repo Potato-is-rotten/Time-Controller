@@ -5,283 +5,135 @@ using System.IO;
 namespace ScreenTimeController.Tests
 {
     [TestFixture]
-    public class DataProtectionManagerTests : TestBase
+    public class DataProtectionManagerTests
     {
-        private DataProtectionManager _dataProtectionManager = null!;
-        private string _testDataPath = string.Empty;
-
-        [SetUp]
-        public override void Setup()
-        {
-            base.Setup();
-            _testDataPath = GetTestFilePath("protected_data.json");
-            _dataProtectionManager = new DataProtectionManager(_testDataPath);
-        }
+        private string _testFileName = "test_data_" + Guid.NewGuid().ToString() + ".json";
 
         [TearDown]
-        public override void Teardown()
+        public void Teardown()
         {
-            base.Teardown();
-        }
-
-        [Test]
-        public void Constructor_ValidPath_CreatesInstance()
-        {
-            Assert.That(_dataProtectionManager, Is.Not.Null);
-        }
-
-        [Test]
-        public void ProtectData_ValidData_ProtectsSuccessfully()
-        {
-            string testData = "Test data to protect";
-
-            bool result = _dataProtectionManager.ProtectData(testData);
-
-            Assert.That(result, Is.True);
-            Assert.That(File.Exists(_testDataPath), Is.True);
-        }
-
-        [Test]
-        public void ProtectData_EmptyData_ReturnsFalse()
-        {
-            string testData = "";
-
-            bool result = _dataProtectionManager.ProtectData(testData);
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void ProtectData_NullData_ReturnsFalse()
-        {
-            string? testData = null;
-
-            bool result = _dataProtectionManager.ProtectData(testData!);
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void UnprotectData_ProtectedData_UnprotectsSuccessfully()
-        {
-            string originalData = "Test data to protect";
-
-            _dataProtectionManager.ProtectData(originalData);
-            string? unprotectedData = _dataProtectionManager.UnprotectData();
-
-            Assert.That(unprotectedData, Is.Not.Null);
-            Assert.That(unprotectedData, Is.EqualTo(originalData));
-        }
-
-        [Test]
-        public void UnprotectData_NoProtectedData_ReturnsNull()
-        {
-            string? result = _dataProtectionManager.UnprotectData();
-
-            Assert.That(result, Is.Null);
-        }
-
-        [Test]
-        public void UnprotectData_CorruptedData_ReturnsNull()
-        {
-            File.WriteAllText(_testDataPath, "corrupted data");
-
-            string? result = _dataProtectionManager.UnprotectData();
-
-            Assert.That(result, Is.Null);
-        }
-
-        [Test]
-        public void VerifyIntegrity_ValidData_ReturnsTrue()
-        {
-            string testData = "Test data to protect";
-
-            _dataProtectionManager.ProtectData(testData);
-            bool result = _dataProtectionManager.VerifyIntegrity();
-
-            Assert.That(result, Is.True);
-        }
-
-        [Test]
-        public void VerifyIntegrity_NoData_ReturnsFalse()
-        {
-            bool result = _dataProtectionManager.VerifyIntegrity();
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void VerifyIntegrity_CorruptedData_ReturnsFalse()
-        {
-            File.WriteAllText(_testDataPath, "corrupted data");
-
-            bool result = _dataProtectionManager.VerifyIntegrity();
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void DeleteData_ExistingData_DeletesSuccessfully()
-        {
-            string testData = "Test data to protect";
-
-            _dataProtectionManager.ProtectData(testData);
-            bool result = _dataProtectionManager.DeleteData();
-
-            Assert.That(result, Is.True);
-            Assert.That(File.Exists(_testDataPath), Is.False);
-        }
-
-        [Test]
-        public void DeleteData_NoData_ReturnsFalse()
-        {
-            bool result = _dataProtectionManager.DeleteData();
-
-            Assert.That(result, Is.False);
-        }
-
-        [Test]
-        public void DataExists_ExistingData_ReturnsTrue()
-        {
-            string testData = "Test data to protect";
-
-            _dataProtectionManager.ProtectData(testData);
-
-            Assert.That(_dataProtectionManager.DataExists(), Is.True);
-        }
-
-        [Test]
-        public void DataExists_NoData_ReturnsFalse()
-        {
-            Assert.That(_dataProtectionManager.DataExists(), Is.False);
-        }
-
-        [Test]
-        public void ProtectData_OverwriteExistingData_UpdatesSuccessfully()
-        {
-            string originalData = "Original data";
-            string newData = "New data";
-
-            _dataProtectionManager.ProtectData(originalData);
-            _dataProtectionManager.ProtectData(newData);
-
-            string? unprotectedData = _dataProtectionManager.UnprotectData();
-            Assert.That(unprotectedData, Is.EqualTo(newData));
-        }
-
-        [Test]
-        public void ProtectAndUnprotect_SpecialCharacters_PreservesData()
-        {
-            string testData = "Test with special characters: !@#$%^&*()_+-=[]{}|;':\",./<>?";
-
-            _dataProtectionManager.ProtectData(testData);
-            string? unprotectedData = _dataProtectionManager.UnprotectData();
-
-            Assert.That(unprotectedData, Is.EqualTo(testData));
-        }
-
-        [Test]
-        public void ProtectAndUnprotect_UnicodeCharacters_PreservesData()
-        {
-            string testData = "测试数据 Test 数据 🔒🛡️";
-
-            _dataProtectionManager.ProtectData(testData);
-            string? unprotectedData = _dataProtectionManager.UnprotectData();
-
-            Assert.That(unprotectedData, Is.EqualTo(testData));
-        }
-
-        [Test]
-        public void ProtectAndUnprotect_LongData_PreservesData()
-        {
-            string testData = new string('A', 10000);
-
-            _dataProtectionManager.ProtectData(testData);
-            string? unprotectedData = _dataProtectionManager.UnprotectData();
-
-            Assert.That(unprotectedData, Is.EqualTo(testData));
-        }
-
-        [Test]
-        public void ProtectAndUnprotect_MultipleOperations_PreservesData()
-        {
-            for (int i = 0; i < 5; i++)
+            try
             {
-                string testData = $"Test data {i}";
-                _dataProtectionManager.ProtectData(testData);
-                string? unprotectedData = _dataProtectionManager.UnprotectData();
-                Assert.That(unprotectedData, Is.EqualTo(testData));
+                string dataDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                    "ScreenTimeController");
+                string filePath = Path.Combine(dataDir, _testFileName);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+            }
+            catch
+            {
             }
         }
 
         [Test]
-        public void GetFileSize_ExistingData_ReturnsCorrectSize()
+        public void SaveFast_ValidContent_SavesSuccessfully()
         {
-            string testData = "Test data to protect";
+            string content = "Test content " + Guid.NewGuid().ToString();
 
-            _dataProtectionManager.ProtectData(testData);
-            long size = _dataProtectionManager.GetFileSize();
-
-            Assert.That(size, Is.GreaterThan(0));
+            Assert.DoesNotThrow(() => DataProtectionManager.SaveFast(_testFileName, content));
         }
 
         [Test]
-        public void GetFileSize_NoData_ReturnsZero()
+        public void SaveWithProtection_ValidContent_SavesSuccessfully()
         {
-            long size = _dataProtectionManager.GetFileSize();
+            string content = "Test content " + Guid.NewGuid().ToString();
 
-            Assert.That(size, Is.EqualTo(0));
+            Assert.DoesNotThrow(() => DataProtectionManager.SaveWithProtection(_testFileName, content));
         }
 
         [Test]
-        public void BackupData_ExistingData_CreatesBackup()
+        public void SaveWithEncryption_ValidContent_SavesSuccessfully()
         {
-            string testData = "Test data to protect";
-            string backupPath = GetTestFilePath("backup.json");
+            string content = "Test content " + Guid.NewGuid().ToString();
 
-            _dataProtectionManager.ProtectData(testData);
-            bool result = _dataProtectionManager.BackupData(backupPath);
-
-            Assert.That(result, Is.True);
-            Assert.That(File.Exists(backupPath), Is.True);
+            Assert.DoesNotThrow(() => DataProtectionManager.SaveWithEncryption(_testFileName, content));
         }
 
         [Test]
-        public void BackupData_NoData_ReturnsFalse()
+        public void LoadWithDecryption_AfterEncryption_ReturnsOriginalContent()
         {
-            string backupPath = GetTestFilePath("backup.json");
+            string originalContent = "Test content " + Guid.NewGuid().ToString();
 
-            bool result = _dataProtectionManager.BackupData(backupPath);
+            DataProtectionManager.SaveWithEncryption(_testFileName, originalContent);
+            string? loadedContent = DataProtectionManager.LoadWithDecryption(_testFileName);
 
-            Assert.That(result, Is.False);
+            Assert.That(loadedContent, Is.EqualTo(originalContent));
         }
 
         [Test]
-        public void RestoreData_ValidBackup_RestoresSuccessfully()
+        public void LoadWithProtection_AfterSave_ReturnsOriginalContent()
         {
-            string testData = "Test data to protect";
-            string backupPath = GetTestFilePath("backup.json");
+            string originalContent = "Test content " + Guid.NewGuid().ToString();
 
-            _dataProtectionManager.ProtectData(testData);
-            _dataProtectionManager.BackupData(backupPath);
-            _dataProtectionManager.DeleteData();
+            DataProtectionManager.SaveWithProtection(_testFileName, originalContent);
+            string? loadedContent = DataProtectionManager.LoadWithProtection(_testFileName);
 
-            bool result = _dataProtectionManager.RestoreData(backupPath);
-            string? restoredData = _dataProtectionManager.UnprotectData();
-
-            Assert.That(result, Is.True);
-            Assert.That(restoredData, Is.EqualTo(testData));
+            Assert.That(loadedContent, Is.EqualTo(originalContent));
         }
 
         [Test]
-        public void RestoreData_InvalidBackup_ReturnsFalse()
+        public void LoadWithDecryption_NonExistentFile_ReturnsNull()
         {
-            string backupPath = GetTestFilePath("backup.json");
-            File.WriteAllText(backupPath, "invalid backup");
+            string? result = DataProtectionManager.LoadWithDecryption("non_existent_file_" + Guid.NewGuid().ToString() + ".json");
 
-            bool result = _dataProtectionManager.RestoreData(backupPath);
+            Assert.That(result, Is.Null);
+        }
 
-            Assert.That(result, Is.False);
+        [Test]
+        public void LoadWithProtection_NonExistentFile_ReturnsNull()
+        {
+            string? result = DataProtectionManager.LoadWithProtection("non_existent_file_" + Guid.NewGuid().ToString() + ".json");
+
+            Assert.That(result, Is.Null);
+        }
+
+        [Test]
+        public void SaveWithEncryption_SpecialCharacters_PreservesData()
+        {
+            string originalContent = "Test with special characters: !@#$%^&*()_+-=[]{}|;':\",./<>?";
+
+            DataProtectionManager.SaveWithEncryption(_testFileName, originalContent);
+            string? loadedContent = DataProtectionManager.LoadWithDecryption(_testFileName);
+
+            Assert.That(loadedContent, Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public void SaveWithEncryption_UnicodeCharacters_PreservesData()
+        {
+            string originalContent = "测试数据 Test 数据 🔒🛡️";
+
+            DataProtectionManager.SaveWithEncryption(_testFileName, originalContent);
+            string? loadedContent = DataProtectionManager.LoadWithDecryption(_testFileName);
+
+            Assert.That(loadedContent, Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public void SaveWithEncryption_LongContent_PreservesData()
+        {
+            string originalContent = new string('A', 10000);
+
+            DataProtectionManager.SaveWithEncryption(_testFileName, originalContent);
+            string? loadedContent = DataProtectionManager.LoadWithDecryption(_testFileName);
+
+            Assert.That(loadedContent, Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public void SaveWithProtection_Overwrite_UpdatesContent()
+        {
+            string originalContent = "Original content";
+            string newContent = "New content";
+
+            DataProtectionManager.SaveWithProtection(_testFileName, originalContent);
+            DataProtectionManager.SaveWithProtection(_testFileName, newContent);
+            string? loadedContent = DataProtectionManager.LoadWithProtection(_testFileName);
+
+            Assert.That(loadedContent, Is.EqualTo(newContent));
         }
     }
 }

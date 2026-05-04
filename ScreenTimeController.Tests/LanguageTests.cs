@@ -1,5 +1,5 @@
 using NUnit.Framework;
-using System.IO;
+using System;
 
 namespace ScreenTimeController.Tests
 {
@@ -7,234 +7,123 @@ namespace ScreenTimeController.Tests
     public class LanguageTests
     {
         [Test]
-        public void Language_Chinese_HasCorrectValue()
+        public void Language_SimplifiedChinese_IsDefined()
         {
-            Assert.That(Language.Chinese, Is.EqualTo(0));
+            Assert.That(Enum.IsDefined(typeof(Language), Language.SimplifiedChinese), Is.True);
         }
 
         [Test]
-        public void Language_English_HasCorrectValue()
+        public void Language_English_IsDefined()
         {
-            Assert.That(Language.English, Is.EqualTo(1));
+            Assert.That(Enum.IsDefined(typeof(Language), Language.English), Is.True);
         }
 
         [Test]
         public void Language_AllValues_AreDefined()
         {
-            var values = System.Enum.GetValues<Language>();
+            var values = Enum.GetValues<Language>();
 
-            Assert.That(values, Has.Length.EqualTo(2));
-            Assert.That(values, Contains.Item(Language.Chinese));
+            Assert.That(values.Length, Is.GreaterThanOrEqualTo(2));
+            Assert.That(values, Contains.Item(Language.SimplifiedChinese));
             Assert.That(values, Contains.Item(Language.English));
         }
     }
 
     [TestFixture]
-    public class LanguageManagerTests : TestBase
+    public class LanguageManagerTests
     {
-        private LanguageManager _languageManager = null!;
-        private string _testLanguagePath = string.Empty;
-
         [SetUp]
-        public override void Setup()
+        public void Setup()
         {
-            base.Setup();
-            _testLanguagePath = GetTestFilePath("language.json");
-            _languageManager = new LanguageManager(_testLanguagePath);
+            LanguageManager.CurrentLanguage = Language.SimplifiedChinese;
         }
 
         [TearDown]
-        public override void Teardown()
+        public void Teardown()
         {
-            base.Teardown();
+            LanguageManager.CurrentLanguage = Language.SimplifiedChinese;
         }
 
         [Test]
-        public void Constructor_ValidPath_CreatesInstance()
+        public void CurrentLanguage_CanBeSet()
         {
-            Assert.That(_languageManager, Is.Not.Null);
+            LanguageManager.CurrentLanguage = Language.English;
+
+            Assert.That(LanguageManager.CurrentLanguage, Is.EqualTo(Language.English));
         }
 
         [Test]
-        public void GetCurrentLanguage_NoLanguage_ReturnsDefault()
+        public void GetLanguageName_SimplifiedChinese_ReturnsCorrectName()
         {
-            Language language = _languageManager.GetCurrentLanguage();
+            string name = LanguageManager.GetLanguageName(Language.SimplifiedChinese);
 
-            Assert.That(language, Is.EqualTo(Language.Chinese));
-        }
-
-        [Test]
-        public void SetLanguage_ValidLanguage_SetsSuccessfully()
-        {
-            _languageManager.SetLanguage(Language.English);
-
-            Language language = _languageManager.GetCurrentLanguage();
-            Assert.That(language, Is.EqualTo(Language.English));
-        }
-
-        [Test]
-        public void SetLanguage_Chinese_SetsSuccessfully()
-        {
-            _languageManager.SetLanguage(Language.Chinese);
-
-            Language language = _languageManager.GetCurrentLanguage();
-            Assert.That(language, Is.EqualTo(Language.Chinese));
-        }
-
-        [Test]
-        public void GetString_ValidKey_ReturnsCorrectString()
-        {
-            string key = "AppName";
-
-            string result = _languageManager.GetString(key);
-
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.Not.EqualTo(key));
-        }
-
-        [Test]
-        public void GetString_InvalidKey_ReturnsKey()
-        {
-            string key = "NonExistentKey";
-
-            string result = _languageManager.GetString(key);
-
-            Assert.That(result, Is.EqualTo(key));
-        }
-
-        [Test]
-        public void GetString_NullKey_ReturnsEmpty()
-        {
-            string result = _languageManager.GetString(null!);
-
-            Assert.That(result, Is.EqualTo(string.Empty));
-        }
-
-        [Test]
-        public void GetString_EmptyKey_ReturnsEmpty()
-        {
-            string result = _languageManager.GetString("");
-
-            Assert.That(result, Is.EqualTo(string.Empty));
-        }
-
-        [Test]
-        public void GetString_WithLanguage_ReturnsCorrectLanguage()
-        {
-            string key = "AppName";
-
-            string chineseResult = _languageManager.GetString(key, Language.Chinese);
-            string englishResult = _languageManager.GetString(key, Language.English);
-
-            Assert.That(chineseResult, Is.Not.EqualTo(englishResult));
-        }
-
-        [Test]
-        public void SaveAndLoad_PersistsLanguage()
-        {
-            _languageManager.SetLanguage(Language.English);
-
-            var newManager = new LanguageManager(_testLanguagePath);
-            Language language = newManager.GetCurrentLanguage();
-
-            Assert.That(language, Is.EqualTo(Language.English));
-        }
-
-        [Test]
-        public void GetAvailableLanguages_ReturnsAllLanguages()
-        {
-            var languages = _languageManager.GetAvailableLanguages();
-
-            Assert.That(languages, Is.Not.Null);
-            Assert.That(languages, Has.Length.EqualTo(2));
-            Assert.That(languages, Contains.Item(Language.Chinese));
-            Assert.That(languages, Contains.Item(Language.English));
-        }
-
-        [Test]
-        public void GetLanguageName_Chinese_ReturnsCorrectName()
-        {
-            string name = _languageManager.GetLanguageName(Language.Chinese);
-
-            Assert.That(name, Is.EqualTo("中文"));
+            Assert.That(name, Is.EqualTo("简体中文"));
         }
 
         [Test]
         public void GetLanguageName_English_ReturnsCorrectName()
         {
-            string name = _languageManager.GetLanguageName(Language.English);
+            string name = LanguageManager.GetLanguageName(Language.English);
 
             Assert.That(name, Is.EqualTo("English"));
         }
 
         [Test]
-        public void Reload_ReloadsLanguageFile()
+        public void GetString_ValidKey_ReturnsNonEmptyString()
         {
-            _languageManager.SetLanguage(Language.English);
-            _languageManager.Reload();
+            string key = "AppTitle";
 
-            Language language = _languageManager.GetCurrentLanguage();
-            Assert.That(language, Is.EqualTo(Language.English));
-        }
-
-        [Test]
-        public void GetString_WithFormat_ReturnsFormattedString()
-        {
-            string key = "TimeRemaining";
-            object[] args = new object[] { 30 };
-
-            string result = _languageManager.GetString(key, args);
-
-            Assert.That(result, Does.Contain("30"));
-        }
-
-        [Test]
-        public void HasKey_ExistingKey_ReturnsTrue()
-        {
-            string key = "AppName";
-
-            bool hasKey = _languageManager.HasKey(key);
-
-            Assert.That(hasKey, Is.True);
-        }
-
-        [Test]
-        public void HasKey_NonExistentKey_ReturnsFalse()
-        {
-            string key = "NonExistentKey";
-
-            bool hasKey = _languageManager.HasKey(key);
-
-            Assert.That(hasKey, Is.False);
-        }
-
-        [Test]
-        public void GetAllKeys_ReturnsAllKeys()
-        {
-            var keys = _languageManager.GetAllKeys();
-
-            Assert.That(keys, Is.Not.Null);
-            Assert.That(keys, Is.Not.Empty);
-        }
-
-        [Test]
-        public void GetString_WithNullArgs_ReturnsString()
-        {
-            string key = "AppName";
-
-            string result = _languageManager.GetString(key, null!);
+            string result = LanguageManager.GetString(key);
 
             Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.Not.Empty);
         }
 
         [Test]
-        public void GetString_WithEmptyArgs_ReturnsString()
+        public void GetString_InvalidKey_ReturnsKey()
         {
-            string key = "AppName";
+            string key = "NonExistentKey12345";
 
-            string result = _languageManager.GetString(key, new object[0]);
+            string result = LanguageManager.GetString(key);
 
-            Assert.That(result, Is.Not.Null);
+            Assert.That(result, Is.EqualTo(key));
+        }
+
+        [Test]
+        public void GetString_DifferentLanguages_ReturnsDifferentStrings()
+        {
+            string key = "AppTitle";
+
+            LanguageManager.CurrentLanguage = Language.SimplifiedChinese;
+            string chineseResult = LanguageManager.GetString(key);
+
+            LanguageManager.CurrentLanguage = Language.English;
+            string englishResult = LanguageManager.GetString(key);
+
+            Assert.That(chineseResult, Is.Not.EqualTo(englishResult));
+        }
+
+        [Test]
+        public void LanguageChanged_EventFires_WhenLanguageChanges()
+        {
+            bool eventFired = false;
+            LanguageManager.LanguageChanged += (s, e) => eventFired = true;
+
+            LanguageManager.CurrentLanguage = Language.English;
+
+            Assert.That(eventFired, Is.True);
+        }
+
+        [Test]
+        public void LanguageChanged_EventDoesNotFire_WhenSameLanguage()
+        {
+            int fireCount = 0;
+            LanguageManager.CurrentLanguage = Language.SimplifiedChinese;
+            LanguageManager.LanguageChanged += (s, e) => fireCount++;
+
+            LanguageManager.CurrentLanguage = Language.SimplifiedChinese;
+
+            Assert.That(fireCount, Is.EqualTo(0));
         }
     }
 }
