@@ -76,6 +76,7 @@ public class MainForm : Form
         _appFriendlyNames = new Dictionary<string, string>();
         _appItemFont = new Font("Segoe UI", 12f, FontStyle.Bold);
         _appItemSubFont = new Font("Segoe UI", 11f, FontStyle.Regular);
+        _settingsManager.LockModeChanged += OnLockModeChanged;
         SetupNotifyIcon();
         SetupTimers();
         SetupIconList();
@@ -84,6 +85,24 @@ public class MainForm : Form
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         UpdateUI();
         UpdateProtectionStatus();
+    }
+
+    private void OnLockModeChanged(object? sender, LockMode newMode)
+    {
+        if (_isDisposed) return;
+        
+        try
+        {
+            if (newMode == LockMode.PerApp)
+            {
+                _appLockService?.Start();
+            }
+            else
+            {
+                _appLockService?.Stop();
+            }
+        }
+        catch { }
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
@@ -281,8 +300,7 @@ public class MainForm : Form
             string? activeWindowProcessName = WindowHelper.GetActiveWindowProcessName();
             if (!string.IsNullOrEmpty(activeWindowProcessName))
             {
-                string displayName = GetAppFriendlyName(activeWindowProcessName);
-                _timeTracker.RecordUsage(TimeSpan.FromSeconds(2.0), displayName);
+                _timeTracker.RecordUsage(TimeSpan.FromSeconds(2.0), activeWindowProcessName);
                 if (!_iconCache.ContainsKey(activeWindowProcessName) && _iconCache.Count < 50)
                 {
                     Task.Run(() => CacheAppIconAsync(activeWindowProcessName));
@@ -496,22 +514,34 @@ public class MainForm : Form
                 }
                 _progressBarUsage!.Value = progress;
                 Dictionary<string, TimeSpan> appUsage = _timeTracker.AppUsage;
+                
+                List<AppTimeLimit> appLimits = _settingsManager.AppTimeLimits;
+                Dictionary<string, TimeSpan> allApps = new Dictionary<string, TimeSpan>(appUsage);
+                
+                foreach (AppTimeLimit limit in appLimits)
+                {
+                    if (!allApps.ContainsKey(limit.AppIdentifier))
+                    {
+                        allApps[limit.AppIdentifier] = TimeSpan.Zero;
+                    }
+                }
+                
                 bool needsRefresh = false;
-                if (_listBoxAppUsage!.Items.Count != appUsage.Count)
+                if (_listBoxAppUsage!.Items.Count != allApps.Count)
                 {
                     needsRefresh = true;
                 }
                 else
                 {
                     int idx = 0;
-                    foreach (KeyValuePair<string, TimeSpan> item in appUsage)
+                    foreach (KeyValuePair<string, TimeSpan> item in allApps)
                     {
                         if (idx >= _listBoxAppUsage.Items.Count)
                         {
                             needsRefresh = true;
                             break;
                         }
-                        if (_listBoxAppUsage.Items[idx].Text != item.Key)
+                        if (_listBoxAppUsage.Items[idx].Text != GetAppFriendlyName(item.Key))
                         {
                             needsRefresh = true;
                             break;
@@ -530,32 +560,106 @@ public class MainForm : Form
                     }
                     _appIconList.Images.Clear();
                     _listBoxAppUsage.Items.Clear();
-                    foreach (KeyValuePair<string, TimeSpan> item in appUsage)
+                    
+                    Dictionary<string, AppTimeLimit> limitDict = new();
+                    foreach (AppTimeLimit limit in appLimits)
+                    {
+                        limitDict[limit.AppIdentifier] = limit;
+                    }
+                    
+                    foreach (KeyValuePair<string, TimeSpan> item in allApps)
                     {
                         Icon? appIcon = GetAppIcon(item.Key);
                         if (appIcon != null)
                         {
                             _appIconList.Images.Add(item.Key, appIcon);
                         }
+                        
+                        string displayAppName = GetAppFriendlyName(item.Key);
+                        
                         ListViewItem listViewItem = new ListViewItem
                         {
-                            Text = item.Key,
+                            Name = item.Key,
+                            Text = displayAppName,
                             ImageKey = ((appIcon != null) ? item.Key : ""),
                             Font = _appItemFont!
                         };
-                        listViewItem.SubItems.Add($"{item.Value.Hours}h {item.Value.Minutes}m {item.Value.Seconds}s");
+                        
+                        string usedStr = $"{item.Value.Hours}h {item.Value.Minutes}m";
+                        listViewItem.SubItems.Add(usedStr);
                         listViewItem.SubItems[1].Font = _appItemSubFont!;
                         listViewItem.SubItems[1].ForeColor = Color.FromArgb(100, 100, 100);
+                        
+                        string limitStr = "-";
+                        string remainingStr = "-";
+                        Color remainingColor = Color.FromArgb(100, 100, 100);
+                        
+                        if (limitDict.TryGetValue(item.Key, out AppTimeLimit? appLimit))
+                        {
+                            TimeSpan appDailyLimit = appLimit.DailyLimit;
+                            limitStr = $"{(int)appDailyLimit.TotalHours}h {appDailyLimit.Minutes}m";
+                            
+                            TimeSpan remaining = appDailyLimit - item.Value;
+                            if (remaining > TimeSpan.Zero)
+                            {
+                                remainingStr = $"{(int)remaining.TotalHours}h {remaining.Minutes}m";
+                            }
+                            else
+                            {
+                                remainingStr = "0h 0m";
+                                remainingColor = Color.FromArgb(220, 53, 69);
+                            }
+                        }
+                        
+                        listViewItem.SubItems.Add(limitStr);
+                        listViewItem.SubItems[2].Font = _appItemSubFont!;
+                        listViewItem.SubItems[2].ForeColor = Color.FromArgb(100, 100, 100);
+                        
+                        listViewItem.SubItems.Add(remainingStr);
+                        listViewItem.SubItems[3].Font = _appItemSubFont!;
+                        listViewItem.SubItems[3].ForeColor = remainingColor;
+                        
                         _listBoxAppUsage.Items.Add(listViewItem);
                     }
                     return;
                 }
                 int num3 = 0;
-                foreach (KeyValuePair<string, TimeSpan> item in appUsage)
+                Dictionary<string, AppTimeLimit> updateLimitDict = new();
+                foreach (AppTimeLimit limit in appLimits)
+                {
+                    updateLimitDict[limit.AppIdentifier] = limit;
+                }
+                
+                foreach (KeyValuePair<string, TimeSpan> item in allApps)
                 {
                     if (num3 < _listBoxAppUsage.Items.Count)
                     {
                         _listBoxAppUsage.Items[num3].SubItems[1].Text = $"{item.Value.Hours}h {item.Value.Minutes}m {item.Value.Seconds}s";
+                        
+                        if (updateLimitDict.TryGetValue(item.Key, out AppTimeLimit? appLimit))
+                        {
+                            TimeSpan appDailyLimit = appLimit.DailyLimit;
+                            string limitStr = $"{(int)appDailyLimit.TotalHours}h {appDailyLimit.Minutes}m";
+                            _listBoxAppUsage.Items[num3].SubItems[2].Text = limitStr;
+                            
+                            TimeSpan remaining = appDailyLimit - item.Value;
+                            if (remaining > TimeSpan.Zero)
+                            {
+                                _listBoxAppUsage.Items[num3].SubItems[3].Text = $"{(int)remaining.TotalHours}h {remaining.Minutes}m";
+                                _listBoxAppUsage.Items[num3].SubItems[3].ForeColor = Color.FromArgb(100, 100, 100);
+                            }
+                            else
+                            {
+                                _listBoxAppUsage.Items[num3].SubItems[3].Text = "0h 0m";
+                                _listBoxAppUsage.Items[num3].SubItems[3].ForeColor = Color.FromArgb(220, 53, 69);
+                            }
+                        }
+                        else
+                        {
+                            _listBoxAppUsage.Items[num3].SubItems[2].Text = "-";
+                            _listBoxAppUsage.Items[num3].SubItems[3].Text = "-";
+                            _listBoxAppUsage.Items[num3].SubItems[3].ForeColor = Color.FromArgb(100, 100, 100);
+                        }
                     }
                     num3++;
                 }
@@ -583,7 +687,7 @@ public class MainForm : Form
     {
         try
         {
-            using SettingsForm settingsForm = new(_settingsManager);
+            using SettingsForm settingsForm = new(_settingsManager, _timeTracker);
             settingsForm.ShowDialog();
             _hasWarned5Minutes = false;
             UpdateUI();
@@ -958,8 +1062,10 @@ public class MainForm : Form
             GridLines = false,
             OwnerDraw = true
         };
-        _listBoxAppUsage.Columns.Add("Application", -2, HorizontalAlignment.Left);
-        _listBoxAppUsage.Columns.Add("Time", -2, HorizontalAlignment.Left);
+        _listBoxAppUsage.Columns.Add("Application", 200, HorizontalAlignment.Left);
+        _listBoxAppUsage.Columns.Add("Used", 100, HorizontalAlignment.Left);
+        _listBoxAppUsage.Columns.Add("Limit", 100, HorizontalAlignment.Left);
+        _listBoxAppUsage.Columns.Add("Remaining", 100, HorizontalAlignment.Left);
         _listBoxAppUsage.DrawColumnHeader += ListBoxAppUsage_DrawColumnHeader;
         _listBoxAppUsage.DrawItem += (s, e) => { };
         _listBoxAppUsage.DrawSubItem += (s, e) => e.DrawDefault = true;

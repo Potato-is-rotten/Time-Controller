@@ -14,6 +14,11 @@ public class TimeTracker : IDisposable
     private const string UsageFileName = "usage.txt";
     private const string AppUsageFileName = "app_usage.txt";
     
+    /// <summary>
+    /// Occurs when an application's time limit is exceeded.
+    /// </summary>
+    public event EventHandler<AppLimitExceededEventArgs>? AppLimitExceeded;
+    
     private TimeSpan _totalUsage;
     private TimeSpan _bonusTime;
     private readonly Dictionary<string, TimeSpan> _appUsage;
@@ -84,7 +89,7 @@ public class TimeTracker : IDisposable
                 Directory.CreateDirectory(commonDataDir);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         return Path.Combine(commonDataDir, "clean_exit.txt");
     }
 
@@ -97,7 +102,7 @@ public class TimeTracker : IDisposable
                 Directory.CreateDirectory(_dataDirectory);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private void SetupSaveTimer()
@@ -162,7 +167,7 @@ public class TimeTracker : IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private void CheckForNewDay()
@@ -191,7 +196,7 @@ public class TimeTracker : IDisposable
                 LoadUsageData();
                 LoadAppUsageData();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
     }
 
@@ -309,7 +314,7 @@ public class TimeTracker : IDisposable
         string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            try { Directory.CreateDirectory(directory); } catch { }
+            try { Directory.CreateDirectory(directory); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
 
         for (int attempt = 0; attempt < 10; attempt++)
@@ -320,7 +325,7 @@ public class TimeTracker : IDisposable
                 {
                     if (File.Exists(filePath))
                     {
-                        try { File.Delete(filePath); } catch { }
+                        try { File.Delete(filePath); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
                     }
                     File.WriteAllText(filePath, content, Encoding.UTF8);
                 }
@@ -388,6 +393,27 @@ public class TimeTracker : IDisposable
         _needsSave = true;
     }
 
+    public void AddAppBonusTime(string appIdentifier, TimeSpan bonus)
+    {
+        if (bonus <= TimeSpan.Zero || string.IsNullOrEmpty(appIdentifier))
+        {
+            return;
+        }
+
+        lock (_lockObject)
+        {
+            if (!_appUsage.ContainsKey(appIdentifier))
+            {
+                _appUsage[appIdentifier] = TimeSpan.Zero;
+            }
+
+            TimeSpan currentUsage = _appUsage[appIdentifier];
+            TimeSpan newUsage = currentUsage - bonus;
+            _appUsage[appIdentifier] = newUsage > TimeSpan.Zero ? newUsage : TimeSpan.Zero;
+        }
+        _needsSave = true;
+    }
+
     public void UseBonusTime(TimeSpan duration)
     {
         if (duration <= TimeSpan.Zero)
@@ -445,10 +471,21 @@ public class TimeTracker : IDisposable
             {
                 File.Copy(_usageFilePath, _backupFilePath, true);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TimeTracker] Failed to create backup: {ex.Message}");
+            }
         }
 
-        DataProtectionManager.SaveFast(UsageFileName, content);
+        bool success = DataProtectionManager.SaveWithProtection(UsageFileName, content);
+        if (!success)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TimeTracker] SaveWithProtection failed for usage data!");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[TimeTracker] Usage data saved successfully");
+        }
     }
 
     private void SaveAppUsageData()
@@ -482,6 +519,176 @@ public class TimeTracker : IDisposable
     public TimeSpan GetDailyLimit()
     {
         return _settingsManager.GetDailyLimit();
+    }
+
+    /// <summary>
+    /// Gets the usage time for a specific application today.
+    /// </summary>
+    /// <param name="appIdentifier">The application identifier.</param>
+    /// <returns>The total usage time for the application today.</returns>
+    public TimeSpan GetAppUsageToday(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return TimeSpan.Zero;
+        }
+
+        lock (_lockObject)
+        {
+            if (_appUsage.TryGetValue(appIdentifier, out TimeSpan usage))
+            {
+                return usage;
+            }
+            return TimeSpan.Zero;
+        }
+    }
+
+    /// <summary>
+    /// Gets the remaining time for a specific application today.
+    /// </summary>
+    /// <param name="appIdentifier">The application identifier.</param>
+    /// <returns>The remaining time, or TimeSpan.MaxValue if no limit is set.</returns>
+    public TimeSpan GetRemainingTime(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return TimeSpan.MaxValue;
+        }
+
+        var limit = _settingsManager.GetAppTimeLimit(appIdentifier);
+        if (limit == null || !limit.IsEnabled)
+        {
+            return TimeSpan.MaxValue;
+        }
+
+        TimeSpan used = GetAppUsageToday(appIdentifier);
+        TimeSpan remaining = limit.DailyLimit - used;
+        
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+    }
+
+    /// <summary>
+    /// Checks if an application has exceeded its time limit.
+    /// Triggers AppLimitExceeded event when limit is exceeded.
+    /// </summary>
+    /// <param name="appIdentifier">The application identifier.</param>
+    /// <returns>A tuple containing: whether time is exceeded, remaining time, and the limit info.</returns>
+    public (bool IsExceeded, TimeSpan RemainingTime, AppTimeLimit? Limit) CheckAppTimeLimit(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return (false, TimeSpan.MaxValue, null);
+        }
+
+        var limit = _settingsManager.GetAppTimeLimit(appIdentifier);
+        if (limit == null || !limit.IsEnabled)
+        {
+            return (false, TimeSpan.MaxValue, null);
+        }
+
+        TimeSpan used = GetAppUsageToday(appIdentifier);
+        TimeSpan remaining = limit.DailyLimit - used;
+        bool isExceeded = remaining <= TimeSpan.Zero;
+
+        if (isExceeded)
+        {
+            int limitMinutes = (int)limit.DailyLimit.TotalMinutes;
+            int usedMinutes = (int)used.TotalMinutes;
+            int exceededMinutes = usedMinutes - limitMinutes;
+            
+            var eventArgs = new AppLimitExceededEventArgs(
+                appIdentifier,
+                limitMinutes,
+                usedMinutes,
+                exceededMinutes,
+                limit);
+            
+            AppLimitExceeded?.Invoke(this, eventArgs);
+            
+            if (eventArgs.Cancel)
+            {
+                return (false, TimeSpan.Zero, limit);
+            }
+        }
+
+        return (isExceeded, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, limit);
+    }
+
+    /// <summary>
+    /// Checks if an application has exceeded its time limit and returns a detailed result.
+    /// Triggers AppLimitExceeded event when limit is exceeded.
+    /// </summary>
+    /// <param name="appIdentifier">The application identifier.</param>
+    /// <returns>An <see cref="AppTimeLimitResult"/> containing detailed limit check information.</returns>
+    public AppTimeLimitResult CheckAppTimeLimitWithResult(string appIdentifier)
+    {
+        if (string.IsNullOrEmpty(appIdentifier))
+        {
+            return AppTimeLimitResult.NoLimit(appIdentifier ?? string.Empty);
+        }
+
+        var limit = _settingsManager.GetAppTimeLimit(appIdentifier);
+        if (limit == null || !limit.IsEnabled)
+        {
+            return AppTimeLimitResult.NoLimit(appIdentifier);
+        }
+
+        TimeSpan used = GetAppUsageToday(appIdentifier);
+        TimeSpan remaining = limit.DailyLimit - used;
+        bool isExceeded = remaining <= TimeSpan.Zero;
+
+        if (isExceeded)
+        {
+            int limitMinutes = (int)limit.DailyLimit.TotalMinutes;
+            int usedMinutes = (int)used.TotalMinutes;
+            int exceededMinutes = usedMinutes - limitMinutes;
+            
+            var eventArgs = new AppLimitExceededEventArgs(
+                appIdentifier,
+                limitMinutes,
+                usedMinutes,
+                exceededMinutes,
+                limit);
+            
+            AppLimitExceeded?.Invoke(this, eventArgs);
+            
+            return AppTimeLimitResult.Exceeded(appIdentifier, limit, used, eventArgs.Cancel);
+        }
+
+        return AppTimeLimitResult.WithinLimit(appIdentifier, remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, limit, used);
+    }
+
+    /// <summary>
+    /// Gets all applications that have exceeded their time limits.
+    /// </summary>
+    /// <returns>A list of application identifiers that have exceeded limits.</returns>
+    public List<string> GetExceededApps()
+    {
+        var result = new List<string>();
+        var limits = _settingsManager.AppTimeLimits;
+
+        foreach (var limit in limits)
+        {
+            if (limit.IsEnabled)
+            {
+                var (isExceeded, _, _) = CheckAppTimeLimit(limit.AppIdentifier);
+                if (isExceeded)
+                {
+                    result.Add(limit.AppIdentifier);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the current lock mode.
+    /// </summary>
+    /// <returns>The current lock mode.</returns>
+    public LockMode GetCurrentLockMode()
+    {
+        return _settingsManager.CurrentLockMode;
     }
 
     private void CheckAndApplyExitPenalty()
@@ -524,7 +731,7 @@ public class TimeTracker : IDisposable
                     File.Delete(_cleanExitFilePath);
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             if (!wasCleanExit)
             {
@@ -536,7 +743,7 @@ public class TimeTracker : IDisposable
                 _needsSave = true;
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     public void MarkCleanExit()
@@ -578,21 +785,21 @@ public class TimeTracker : IDisposable
                 _midnightTimer?.Stop();
                 _midnightTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             try
             {
                 _saveTimer?.Stop();
                 _saveTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             try
             {
                 _integrityCheckTimer?.Stop();
                 _integrityCheckTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             SaveAllData();
         }

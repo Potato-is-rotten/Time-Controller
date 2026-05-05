@@ -147,8 +147,11 @@ public static class LanguageManager
             "InstallationWizard" => "Installation Wizard",
             "InstallationWizardDescription" => "Select the components to install. The protection service and watchdog ensure the application runs reliably. The scheduled task starts the watchdog when you log in.",
             "ProtectionService" => "Protection Service",
+            "ProtectionServiceDescription" => "Background monitoring service to ensure the application continues to run",
             "WatchdogProcess" => "Watchdog Process",
+            "WatchdogProcessDescription" => "Watchdog process to automatically restart the program if it exits abnormally",
             "ScheduledTask" => "Scheduled Task (Start with Windows)",
+            "ScheduledTaskDescription" => "Create a scheduled task to start automatically on login",
             "Install" => "Install",
             "Skip" => "Skip",
             "InstallingProtectionService" => "Installing protection service...",
@@ -173,6 +176,8 @@ public static class LanguageManager
             "AddApplication" => "Add Application",
             "EditApplication" => "Edit Application",
             "ApplicationName" => "Application Name",
+            "Application" => "Application",
+            "Status" => "Status",
             "DailyTimeLimit" => "Daily Time Limit",
             "EnableTimeLimit" => "Enable time limit",
             "Browse" => "Browse",
@@ -190,7 +195,15 @@ public static class LanguageManager
             "TimeLimitExceeded" => "Time Limit Exceeded",
             "AppTimeLimitReached" => "This application has reached its daily time limit.",
             "AppLockTimeInfo" => "Daily limit: {0} | Used: {1} | Exceeded by: {2}",
+            "CloseApp" => "Close Application",
+            "GracePeriod" => "Grace Period ({0}:{1:D2})",
+            "RequestMoreTime" => "Request More Time",
+            "AddTime" => "Add Time",
+            "TimeLimit" => "Time Limit",
+            "RemainingTime" => "Remaining",
             "Close" => "Close",
+            "AlreadyInstalled" => "Already Installed",
+            "FileNotFound" => "File Not Found",
             _ => key,
         };
     }
@@ -286,8 +299,11 @@ public static class LanguageManager
             "InstallationWizard" => "安装向导",
             "InstallationWizardDescription" => "选择要安装的组件。保护服务和守护进程确保应用程序可靠运行。计划任务在您登录时启动守护进程。",
             "ProtectionService" => "保护服务",
+            "ProtectionServiceDescription" => "后台监控服务，确保应用程序持续运行",
             "WatchdogProcess" => "守护进程",
+            "WatchdogProcessDescription" => "看门狗进程，自动重启异常退出的程序",
             "ScheduledTask" => "计划任务（开机自启）",
+            "ScheduledTaskDescription" => "创建计划任务，登录时自动启动",
             "Install" => "安装",
             "Skip" => "跳过",
             "InstallingProtectionService" => "正在安装保护服务...",
@@ -312,6 +328,8 @@ public static class LanguageManager
             "AddApplication" => "添加应用程序",
             "EditApplication" => "编辑应用程序",
             "ApplicationName" => "应用程序名称",
+            "Application" => "应用程序",
+            "Status" => "状态",
             "DailyTimeLimit" => "每日时间限制",
             "EnableTimeLimit" => "启用时间限制",
             "Browse" => "浏览",
@@ -329,7 +347,15 @@ public static class LanguageManager
             "TimeLimitExceeded" => "时间限制已超限",
             "AppTimeLimitReached" => "此应用程序已达到每日时间限制。",
             "AppLockTimeInfo" => "每日限制：{0} | 已使用：{1} | 超出：{2}",
+            "CloseApp" => "关闭应用程序",
+            "GracePeriod" => "宽限时间 ({0}:{1:D2})",
+            "RequestMoreTime" => "申请更多时间",
+            "AddTime" => "添加时间",
+            "TimeLimit" => "时间限制",
+            "RemainingTime" => "剩余时间",
             "Close" => "关闭",
+            "AlreadyInstalled" => "已安装",
+            "FileNotFound" => "文件未找到",
             _ => key,
         };
     }
@@ -417,6 +443,8 @@ public static class LanguageManager
             "ProtectionDescription" => "此標籤頁顯示保護系統狀態。服務會監控並在主程式異常退出時重新啟動它。",
             "PasswordLock" => "密碼鎖定",
             "EnablePasswordLock" => "啟用密碼鎖定（5次錯誤後鎖定至次日）",
+            "AlreadyInstalled" => "已安裝",
+            "FileNotFound" => "檔案未找到",
             _ => key,
         };
     }
@@ -504,6 +532,8 @@ public static class LanguageManager
             "ProtectionDescription" => "このタブは保護システムの状態を表示します。サービスはメインプログラムを監視し、異常終了時に再起動します。",
             "PasswordLock" => "パスワードロック",
             "EnablePasswordLock" => "パスワードロックを有効化（5回失敗で翌日までロック）",
+            "AlreadyInstalled" => "インストール済み",
+            "FileNotFound" => "ファイルが見つかりません",
             _ => key,
         };
     }
@@ -591,6 +621,8 @@ public static class LanguageManager
             "ProtectionDescription" => "이 탭은 보호 시스템 상태를 표시합니다. 서비스는 메인 프로그램을 모니터링하고 비정상 종료 시 재시작합니다.",
             "PasswordLock" => "비밀번호 잠금",
             "EnablePasswordLock" => "비밀번호 잠금 활성화 (5회 실패 시 다음날까지 잠금)",
+            "AlreadyInstalled" => "설치됨",
+            "FileNotFound" => "파일을 찾을 수 없음",
             _ => key,
         };
     }
@@ -676,6 +708,8 @@ public static class LanguageManager
             "UninstallService" => "Desinstalar Servicio",
             "RefreshStatus" => "Actualizar Estado",
             "ProtectionDescription" => "Esta pestaña muestra el estado del sistema de protección. El servicio monitorea y reinicia el programa principal si se cierra inesperadamente.",
+            "AlreadyInstalled" => "Ya Instalado",
+            "FileNotFound" => "Archivo No Encontrado",
             _ => key,
         };
     }
@@ -761,6 +795,8 @@ public static class LanguageManager
             "UninstallService" => "Désinstaller le Service",
             "RefreshStatus" => "Actualiser l'État",
             "ProtectionDescription" => "Cet onglet affiche l'état du système de protection. Le service surveille et redémarre le programme principal s'il se ferme de manière inattendue.",
+            "AlreadyInstalled" => "Déjà Installé",
+            "FileNotFound" => "Fichier Non Trouvé",
             _ => key,
         };
     }
@@ -846,6 +882,8 @@ public static class LanguageManager
             "UninstallService" => "Dienst Deinstallieren",
             "RefreshStatus" => "Status Aktualisieren",
             "ProtectionDescription" => "Diese Registerkarte zeigt den Status des Schutzsystems. Der Dienst überwacht und startet das Hauptprogramm neu, wenn es unerwartet beendet wird.",
+            "AlreadyInstalled" => "Bereits Installiert",
+            "FileNotFound" => "Datei Nicht Gefunden",
             _ => key,
         };
     }
@@ -931,6 +969,8 @@ public static class LanguageManager
             "UninstallService" => "Удалить Сервис",
             "RefreshStatus" => "Обновить Статус",
             "ProtectionDescription" => "Эта вкладка показывает статус системы защиты. Сервис отслеживает и перезапускает основную программу при неожиданном завершении.",
+            "AlreadyInstalled" => "Уже Установлено",
+            "FileNotFound" => "Файл Не Найден",
             _ => key,
         };
     }
@@ -1016,6 +1056,8 @@ public static class LanguageManager
             "UninstallService" => "Desinstalar Serviço",
             "RefreshStatus" => "Atualizar Status",
             "ProtectionDescription" => "Esta aba mostra o status do sistema de proteção. O serviço monitora e reinicia o programa principal se ele fechar inesperadamente.",
+            "AlreadyInstalled" => "Já Instalado",
+            "FileNotFound" => "Arquivo Não Encontrado",
             _ => key,
         };
     }

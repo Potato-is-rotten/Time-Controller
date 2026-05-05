@@ -23,15 +23,37 @@ public static class DataProtectionManager
         "ScreenTimeController",
         ".backup");
 
-    public static void SaveWithProtection(string fileName, string content)
+    public static bool SaveWithProtection(string fileName, string content)
     {
         string primaryPath = Path.Combine(DataDirectory, fileName);
         string backupPath = Path.Combine(HiddenBackupDirectory, fileName);
         
-        SafeWriteFile(primaryPath, content);
-        SafeWriteFile(backupPath, content);
-        SaveToRegistry(fileName, content);
-        SaveHash(fileName, content);
+        bool primarySuccess = SafeWriteFile(primaryPath, content);
+        if (!primarySuccess)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to write primary file: {primaryPath}");
+            return false;
+        }
+        
+        bool backupSuccess = SafeWriteFile(backupPath, content);
+        if (!backupSuccess)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to write backup file: {backupPath}");
+        }
+        
+        bool registrySuccess = SaveToRegistry(fileName, content);
+        if (!registrySuccess)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to save to registry: {fileName}");
+        }
+        
+        bool hashSuccess = SaveHash(fileName, content);
+        if (!hashSuccess)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to save hash: {fileName}");
+        }
+        
+        return primarySuccess;
     }
 
     public static void SaveFast(string fileName, string content)
@@ -88,6 +110,7 @@ public static class DataProtectionManager
             {
                 return content;
             }
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Primary file hash verification failed for {fileName}");
         }
         
         content = SafeReadFile(backupPath);
@@ -103,6 +126,7 @@ public static class DataProtectionManager
                 RestorePrimaryFromBackup(fileName, content);
                 return content;
             }
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Backup file hash verification failed for {fileName}");
         }
         
         content = LoadFromRegistry(fileName);
@@ -118,8 +142,18 @@ public static class DataProtectionManager
                 RestorePrimaryFromBackup(fileName, content);
                 return content;
             }
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Registry backup hash verification failed for {fileName}");
         }
         
+        content = SafeReadFile(primaryPath);
+        if (!string.IsNullOrEmpty(content))
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Returning primary file content despite hash mismatch for {fileName}");
+            SaveHash(fileName, content);
+            return content;
+        }
+        
+        System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] All data sources failed for {fileName}");
         return null;
     }
 
@@ -170,7 +204,10 @@ public static class DataProtectionManager
                 key.SetValue("TamperingCount", count + 1);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to record tampering for {fileName}", ex);
+        }
     }
 
     public static int GetTamperingCount()
@@ -183,7 +220,10 @@ public static class DataProtectionManager
                 return (int)(key.GetValue("TamperingCount", 0) ?? 0);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to get tampering count", ex);
+        }
         return 0;
     }
 
@@ -197,10 +237,13 @@ public static class DataProtectionManager
                 key.SetValue("TamperingCount", 0);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to reset tampering count", ex);
+        }
     }
 
-    private static void SaveHash(string fileName, string content)
+    private static bool SaveHash(string fileName, string content)
     {
         try
         {
@@ -212,9 +255,19 @@ public static class DataProtectionManager
             {
                 key.SetValue(fileName, hashHex);
                 key.SetValue($"{fileName}_Time", DateTime.UtcNow.Ticks);
+                return true;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to create registry key for hash: {fileName}");
+                return false;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] SaveHash failed for {fileName}: {ex.Message}");
+            return false;
+        }
     }
 
     private static bool VerifyHash(string fileName, string content)
@@ -244,7 +297,7 @@ public static class DataProtectionManager
         }
     }
 
-    private static void SaveToRegistry(string fileName, string content)
+    private static bool SaveToRegistry(string fileName, string content)
     {
         try
         {
@@ -253,9 +306,19 @@ public static class DataProtectionManager
             {
                 byte[] data = Encoding.UTF8.GetBytes(content);
                 key.SetValue(fileName, data, RegistryValueKind.Binary);
+                return true;
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to create registry key for backup: {fileName}");
+                return false;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] SaveToRegistry failed for {fileName}: {ex.Message}");
+            return false;
+        }
     }
 
     private static string? LoadFromRegistry(string fileName)
@@ -272,7 +335,10 @@ public static class DataProtectionManager
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to load from registry: {fileName}", ex);
+        }
         return null;
     }
 
@@ -284,7 +350,10 @@ public static class DataProtectionManager
             SafeWriteFile(primaryPath, content);
             RecordTampering(fileName);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to restore primary from backup: {fileName}", ex);
+        }
     }
 
     private static string? SafeReadFile(string filePath)
@@ -306,7 +375,7 @@ public static class DataProtectionManager
         }
     }
 
-    private static void SafeWriteFile(string filePath, string content)
+    private static bool SafeWriteFile(string filePath, string content)
     {
         string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
@@ -322,10 +391,17 @@ public static class DataProtectionManager
                         DirectoryInfo dirInfo = new DirectoryInfo(directory);
                         dirInfo.Attributes |= FileAttributes.Hidden;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to set hidden attribute: {ex.Message}");
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to create directory: {ex.Message}");
+                return false;
+            }
         }
 
         string tempFile = filePath + ".tmp";
@@ -345,15 +421,28 @@ public static class DataProtectionManager
                         File.Delete(backupFile);
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Failed to delete backup file: {ex.Message}");
+                }
             }
             else
             {
                 File.Move(tempFile, filePath);
             }
+            
+            string verify = File.ReadAllText(filePath, Encoding.UTF8);
+            if (verify != content)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] File verification failed for {filePath}");
+                return false;
+            }
+            
+            return true;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] SafeWriteFile failed for {filePath}: {ex.Message}");
             try
             {
                 if (File.Exists(tempFile))
@@ -361,7 +450,11 @@ public static class DataProtectionManager
                     File.Delete(tempFile);
                 }
             }
-            catch { }
+            catch (Exception deleteEx)
+            {
+                Logger.LogError($"Failed to delete temp file: {tempFile}", deleteEx);
+            }
+            return false;
         }
     }
 
@@ -382,7 +475,10 @@ public static class DataProtectionManager
                 SetDirectoryPermissions(HiddenBackupDirectory);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to ensure directory exists", ex);
+        }
     }
 
     private static void SetDirectoryPermissions(string directoryPath)
@@ -392,27 +488,48 @@ public static class DataProtectionManager
             DirectoryInfo dirInfo = new DirectoryInfo(directoryPath);
             DirectorySecurity security = dirInfo.GetAccessControl();
             
-            security.SetAccessRuleProtection(true, false);
+            SecurityIdentifier currentUserSid = WindowsIdentity.GetCurrent().User;
+            if (currentUserSid != null)
+            {
+                security.AddAccessRule(new FileSystemAccessRule(
+                    currentUserSid,
+                    FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None,
+                    AccessControlType.Allow));
+            }
             
-            SecurityIdentifier adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
-            security.AddAccessRule(new FileSystemAccessRule(
-                adminSid,
-                FileSystemRights.FullControl,
-                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-                PropagationFlags.None,
-                AccessControlType.Allow));
-            
-            SecurityIdentifier systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
-            security.AddAccessRule(new FileSystemAccessRule(
-                systemSid,
-                FileSystemRights.FullControl,
-                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-                PropagationFlags.None,
-                AccessControlType.Allow));
+            try
+            {
+                security.SetAccessRuleProtection(true, false);
+                
+                SecurityIdentifier adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+                security.AddAccessRule(new FileSystemAccessRule(
+                    adminSid,
+                    FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None,
+                    AccessControlType.Allow));
+                
+                SecurityIdentifier systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+                security.AddAccessRule(new FileSystemAccessRule(
+                    systemSid,
+                    FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None,
+                    AccessControlType.Allow));
+            }
+            catch (UnauthorizedAccessException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] Cannot set restricted permissions, using current user permissions only");
+            }
             
             dirInfo.SetAccessControl(security);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DataProtectionManager] SetDirectoryPermissions failed: {ex.Message}");
+        }
     }
 
     public static bool HasBackupInRegistry(string fileName)
@@ -425,7 +542,10 @@ public static class DataProtectionManager
                 return key.GetValue(fileName) != null;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to check backup in registry: {fileName}", ex);
+        }
         return false;
     }
 
