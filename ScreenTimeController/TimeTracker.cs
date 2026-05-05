@@ -89,7 +89,7 @@ public class TimeTracker : IDisposable
                 Directory.CreateDirectory(commonDataDir);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         return Path.Combine(commonDataDir, "clean_exit.txt");
     }
 
@@ -102,7 +102,7 @@ public class TimeTracker : IDisposable
                 Directory.CreateDirectory(_dataDirectory);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private void SetupSaveTimer()
@@ -167,7 +167,7 @@ public class TimeTracker : IDisposable
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private void CheckForNewDay()
@@ -196,7 +196,7 @@ public class TimeTracker : IDisposable
                 LoadUsageData();
                 LoadAppUsageData();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
     }
 
@@ -314,7 +314,7 @@ public class TimeTracker : IDisposable
         string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            try { Directory.CreateDirectory(directory); } catch { }
+            try { Directory.CreateDirectory(directory); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
 
         for (int attempt = 0; attempt < 10; attempt++)
@@ -325,7 +325,7 @@ public class TimeTracker : IDisposable
                 {
                     if (File.Exists(filePath))
                     {
-                        try { File.Delete(filePath); } catch { }
+                        try { File.Delete(filePath); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
                     }
                     File.WriteAllText(filePath, content, Encoding.UTF8);
                 }
@@ -731,7 +731,7 @@ public class TimeTracker : IDisposable
                     File.Delete(_cleanExitFilePath);
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             if (!wasCleanExit)
             {
@@ -743,7 +743,7 @@ public class TimeTracker : IDisposable
                 _needsSave = true;
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     public void MarkCleanExit()
@@ -785,21 +785,21 @@ public class TimeTracker : IDisposable
                 _midnightTimer?.Stop();
                 _midnightTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             try
             {
                 _saveTimer?.Stop();
                 _saveTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             try
             {
                 _integrityCheckTimer?.Stop();
                 _integrityCheckTimer?.Dispose();
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
 
             SaveAllData();
         }

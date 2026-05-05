@@ -197,7 +197,7 @@ public class SettingsManager
                 Directory.CreateDirectory(dir);
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private string? SafeReadFile(string filePath)
@@ -231,7 +231,7 @@ public class SettingsManager
         string? directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
-            try { Directory.CreateDirectory(directory); } catch { }
+            try { Directory.CreateDirectory(directory); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
 
         for (int attempt = 0; attempt < 5; attempt++)
@@ -368,7 +368,7 @@ public class SettingsManager
                         break;
                 }
             }
-            catch { }
+            catch (Exception ex) { Logger.LogError("Operation failed", ex); }
         }
     }
 
@@ -403,7 +403,7 @@ public class SettingsManager
                 }
             }
         }
-        catch { }
+        catch (Exception ex) { Logger.LogError("Operation failed", ex); }
     }
 
     private string SerializeAppTimeLimits()

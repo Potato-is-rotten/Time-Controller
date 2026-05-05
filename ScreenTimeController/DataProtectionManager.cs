@@ -204,7 +204,10 @@ public static class DataProtectionManager
                 key.SetValue("TamperingCount", count + 1);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to record tampering for {fileName}", ex);
+        }
     }
 
     public static int GetTamperingCount()
@@ -217,7 +220,10 @@ public static class DataProtectionManager
                 return (int)(key.GetValue("TamperingCount", 0) ?? 0);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to get tampering count", ex);
+        }
         return 0;
     }
 
@@ -231,7 +237,10 @@ public static class DataProtectionManager
                 key.SetValue("TamperingCount", 0);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to reset tampering count", ex);
+        }
     }
 
     private static bool SaveHash(string fileName, string content)
@@ -326,7 +335,10 @@ public static class DataProtectionManager
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to load from registry: {fileName}", ex);
+        }
         return null;
     }
 
@@ -338,7 +350,10 @@ public static class DataProtectionManager
             SafeWriteFile(primaryPath, content);
             RecordTampering(fileName);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to restore primary from backup: {fileName}", ex);
+        }
     }
 
     private static string? SafeReadFile(string filePath)
@@ -435,7 +450,10 @@ public static class DataProtectionManager
                     File.Delete(tempFile);
                 }
             }
-            catch { }
+            catch (Exception deleteEx)
+            {
+                Logger.LogError($"Failed to delete temp file: {tempFile}", deleteEx);
+            }
             return false;
         }
     }
@@ -457,7 +475,10 @@ public static class DataProtectionManager
                 SetDirectoryPermissions(HiddenBackupDirectory);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError("Failed to ensure directory exists", ex);
+        }
     }
 
     private static void SetDirectoryPermissions(string directoryPath)
@@ -521,7 +542,10 @@ public static class DataProtectionManager
                 return key.GetValue(fileName) != null;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.LogError($"Failed to check backup in registry: {fileName}", ex);
+        }
         return false;
     }
 
