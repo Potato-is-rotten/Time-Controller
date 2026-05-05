@@ -76,6 +76,7 @@ public class MainForm : Form
         _appFriendlyNames = new Dictionary<string, string>();
         _appItemFont = new Font("Segoe UI", 12f, FontStyle.Bold);
         _appItemSubFont = new Font("Segoe UI", 11f, FontStyle.Regular);
+        _settingsManager.LockModeChanged += OnLockModeChanged;
         SetupNotifyIcon();
         SetupTimers();
         SetupIconList();
@@ -84,6 +85,24 @@ public class MainForm : Form
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         UpdateUI();
         UpdateProtectionStatus();
+    }
+
+    private void OnLockModeChanged(object? sender, LockMode newMode)
+    {
+        if (_isDisposed) return;
+        
+        try
+        {
+            if (newMode == LockMode.PerApp)
+            {
+                _appLockService?.Start();
+            }
+            else
+            {
+                _appLockService?.Stop();
+            }
+        }
+        catch { }
     }
 
     private void OnDisplaySettingsChanged(object? sender, EventArgs e)
@@ -573,6 +592,7 @@ public class MainForm : Form
                         
                         string limitStr = "-";
                         string remainingStr = "-";
+                        Color remainingColor = Color.FromArgb(100, 100, 100);
                         
                         if (limitDict.TryGetValue(item.Key, out AppTimeLimit? appLimit))
                         {
@@ -587,7 +607,7 @@ public class MainForm : Form
                             else
                             {
                                 remainingStr = "0h 0m";
-                                listViewItem.SubItems[3].ForeColor = Color.FromArgb(220, 53, 69);
+                                remainingColor = Color.FromArgb(220, 53, 69);
                             }
                         }
                         
@@ -597,6 +617,7 @@ public class MainForm : Form
                         
                         listViewItem.SubItems.Add(remainingStr);
                         listViewItem.SubItems[3].Font = _appItemSubFont!;
+                        listViewItem.SubItems[3].ForeColor = remainingColor;
                         
                         _listBoxAppUsage.Items.Add(listViewItem);
                     }

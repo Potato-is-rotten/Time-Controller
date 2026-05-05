@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,6 +15,8 @@ public class SettingsManager
     private readonly string _settingsFilePath;
     private readonly string _backupFilePath;
     private readonly object _lockObject = new();
+
+    public event EventHandler<LockMode>? LockModeChanged;
 
     private int _sundayLimitMinutes = 120;
     private int _mondayLimitMinutes = 120;
@@ -89,7 +92,17 @@ public class SettingsManager
     public LockMode CurrentLockMode
     {
         get { lock (_lockObject) { return _currentLockMode; } }
-        set { lock (_lockObject) { _currentLockMode = value; } }
+        set
+        {
+            lock (_lockObject)
+            {
+                if (_currentLockMode != value)
+                {
+                    _currentLockMode = value;
+                    LockModeChanged?.Invoke(this, value);
+                }
+            }
+        }
     }
 
     public List<AppTimeLimit> AppTimeLimits
@@ -270,22 +283,18 @@ public class SettingsManager
                 }
                 else
                 {
-                    if (DataProtectionManager.AreAllBackupsLost(SettingsFileName))
-                    {
-                        MessageBox.Show(
-                            LanguageManager.GetString("SettingsLostDescription"),
-                            LanguageManager.GetString("SettingsLost"),
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        ResetToDefaults();
-                    }
-                    else
-                    {
-                        SaveSettings();
-                    }
+                    MessageBox.Show(
+                        LanguageManager.GetString("SettingsLostDescription"),
+                        LanguageManager.GetString("SettingsLost"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    ResetToDefaults();
                 }
             }
-            catch { }
+            catch 
+            { 
+                ResetToDefaults();
+            }
         }
 
         LanguageManager.CurrentLanguage = _language;
@@ -448,12 +457,36 @@ public class SettingsManager
                 {
                     File.Copy(_settingsFilePath, _backupFilePath, true);
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[SettingsManager] Failed to create backup: {ex.Message}");
+                }
             }
 
-            DataProtectionManager.SaveFast(SettingsFileName, content);
+            bool success = DataProtectionManager.SaveWithProtection(SettingsFileName, content);
+            if (!success)
+            {
+                Debug.WriteLine($"[SettingsManager] SaveWithProtection failed!");
+                MessageBox.Show(
+                    "Failed to save settings. Please check if you have write permissions to C:\\ProgramData\\ScreenTimeController",
+                    "Save Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            else
+            {
+                Debug.WriteLine($"[SettingsManager] Settings saved successfully");
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[SettingsManager] SaveSettings failed: {ex.Message}");
+            MessageBox.Show(
+                $"Failed to save settings: {ex.Message}",
+                "Save Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
     }
 
     public bool HasPassword()

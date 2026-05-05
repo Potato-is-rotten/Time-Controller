@@ -104,14 +104,33 @@ public class AppLockWindow : Form
 
     private void AppLockWindow_Load(object? sender, EventArgs e)
     {
-        UpdatePositionImmediately();
+        if (_targetProcess == null || _targetProcess.HasExited)
+        {
+            CenterOnScreen();
+        }
+        else
+        {
+            UpdatePositionImmediately();
+        }
         BringToFront();
+    }
+
+    private void CenterOnScreen()
+    {
+        Screen? screen = Screen.PrimaryScreen;
+        if (screen != null)
+        {
+            int x = screen.WorkingArea.Left + (screen.WorkingArea.Width - this.Width) / 2;
+            int y = screen.WorkingArea.Top + (screen.WorkingArea.Height - this.Height) / 2;
+            this.Location = new Point(x, y);
+        }
     }
 
     private void UpdatePositionImmediately()
     {
         if (_targetProcess == null || _targetProcess.HasExited)
         {
+            CenterOnScreen();
             return;
         }
 
@@ -129,31 +148,6 @@ public class AppLockWindow : Form
                 int height = rect.Bottom - rect.Top;
                 int x = rect.Left;
                 int y = rect.Top;
-
-                Screen? screen = Screen.FromHandle(hWnd);
-                if (screen == null) screen = Screen.PrimaryScreen;
-
-                if (x < screen.WorkingArea.Left)
-                {
-                    x = screen.WorkingArea.Left;
-                }
-                if (y < screen.WorkingArea.Top)
-                {
-                    y = screen.WorkingArea.Top;
-                }
-                if (x + width > screen.WorkingArea.Right)
-                {
-                    x = screen.WorkingArea.Right - width;
-                }
-                if (y + height > screen.WorkingArea.Bottom)
-                {
-                    y = screen.WorkingArea.Bottom - height;
-                }
-
-                if (x != rect.Left || y != rect.Top)
-                {
-                    MoveWindow(hWnd, x, y, width, height, true);
-                }
 
                 this.Bounds = new Rectangle(x, y, width, height);
             }
@@ -231,31 +225,6 @@ public class AppLockWindow : Form
 
                 if (!_isDragging)
                 {
-                    Screen? screen = Screen.FromHandle(hWnd);
-                    if (screen == null) screen = Screen.PrimaryScreen;
-
-                    if (x < screen.WorkingArea.Left)
-                    {
-                        x = screen.WorkingArea.Left;
-                    }
-                    if (y < screen.WorkingArea.Top)
-                    {
-                        y = screen.WorkingArea.Top;
-                    }
-                    if (x + width > screen.WorkingArea.Right)
-                    {
-                        x = screen.WorkingArea.Right - width;
-                    }
-                    if (y + height > screen.WorkingArea.Bottom)
-                    {
-                        y = screen.WorkingArea.Bottom - height;
-                    }
-
-                    if (x != rect.Left || y != rect.Top)
-                    {
-                        MoveWindow(hWnd, x, y, width, height, true);
-                    }
-
                     if (this.Bounds.X != x || this.Bounds.Y != y ||
                         this.Bounds.Width != width || this.Bounds.Height != height)
                     {

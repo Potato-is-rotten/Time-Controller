@@ -471,10 +471,21 @@ public class TimeTracker : IDisposable
             {
                 File.Copy(_usageFilePath, _backupFilePath, true);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[TimeTracker] Failed to create backup: {ex.Message}");
+            }
         }
 
-        DataProtectionManager.SaveFast(UsageFileName, content);
+        bool success = DataProtectionManager.SaveWithProtection(UsageFileName, content);
+        if (!success)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TimeTracker] SaveWithProtection failed for usage data!");
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine($"[TimeTracker] Usage data saved successfully");
+        }
     }
 
     private void SaveAppUsageData()

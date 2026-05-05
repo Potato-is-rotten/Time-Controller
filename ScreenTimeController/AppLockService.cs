@@ -9,9 +9,6 @@ using System.Windows.Forms;
 
 namespace ScreenTimeController;
 
-/// <summary>
-/// Service for managing application time limits and locking.
-/// </summary>
 public class AppLockService : IDisposable
 {
     private readonly SettingsManager _settingsManager;
@@ -24,6 +21,29 @@ public class AppLockService : IDisposable
     private string? _currentForegroundApp;
     private bool _isDisposed;
     private bool _isEnabled;
+
+    [DllImport("user32.dll")]
+    private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern int GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 
     /// <summary>
     /// Gets or sets whether the service is enabled.
@@ -101,14 +121,14 @@ public class AppLockService : IDisposable
     {
         if (_checkTimer == null)
         {
-            _checkTimer = new System.Timers.Timer(5000.0);
+            _checkTimer = new System.Timers.Timer(1000.0);
             _checkTimer.Elapsed += OnCheckTimerElapsed;
         }
         _checkTimer.Start();
 
         if (_foregroundTimer == null)
         {
-            _foregroundTimer = new System.Timers.Timer(1000.0);
+            _foregroundTimer = new System.Timers.Timer(500.0);
             _foregroundTimer.Elapsed += OnForegroundTimerElapsed;
         }
         _foregroundTimer.Start();
@@ -262,12 +282,6 @@ public class AppLockService : IDisposable
         bool hasWindow = WindowHelper.ProcessHasWindow(processName);
         Debug.WriteLine($"[AppLockService] ShowLockWindow: ProcessHasWindow({processName}) = {hasWindow}");
         
-        if (!hasWindow)
-        {
-            Debug.WriteLine($"[AppLockService] ShowLockWindow: No window for {processName}, returning");
-            return;
-        }
-
         _lastLockTime[appIdentifier] = DateTime.Now;
 
         Process? targetProcess = null;
@@ -284,14 +298,14 @@ public class AppLockService : IDisposable
                         break;
                     }
                 }
+                if (targetProcess == null && processes.Length > 0)
+                {
+                    targetProcess = processes[0];
+                    Debug.WriteLine($"[AppLockService] ShowLockWindow: Using first process without window handle");
+                }
             }
         }
         catch { }
-
-        if (targetProcess == null)
-        {
-            return;
-        }
 
         try
         {
