@@ -13,15 +13,23 @@ public class TimeTracker : IDisposable
 {
     private const string UsageFileName = "usage.txt";
     private const string AppUsageFileName = "app_usage.txt";
-    
+
+    /// <summary>
+    /// Maximum total bonus time that may be granted to a single application in one day.
+    /// Without this cap, a user can repeatedly accept the grace-period dialog to render any
+    /// per-app daily limit ineffective.
+    /// </summary>
+    private const int MaxAppBonusPerDayMinutes = 60;
+
     /// <summary>
     /// Occurs when an application's time limit is exceeded.
     /// </summary>
     public event EventHandler<AppLimitExceededEventArgs>? AppLimitExceeded;
-    
+
     private TimeSpan _totalUsage;
     private TimeSpan _bonusTime;
     private readonly Dictionary<string, TimeSpan> _appUsage;
+    private readonly Dictionary<string, TimeSpan> _appBonusGrantedToday;
     private readonly SettingsManager _settingsManager;
     private readonly string _dataDirectory;
     private readonly string _usageFilePath;
@@ -61,6 +69,7 @@ public class TimeTracker : IDisposable
     {
         _settingsManager = settingsManager;
         _appUsage = new Dictionary<string, TimeSpan>();
+        _appBonusGrantedToday = new Dictionary<string, TimeSpan>();
         _bonusTime = TimeSpan.Zero;
         _dataDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "ScreenTimeController");
         _usageFilePath = Path.Combine(_dataDirectory, "usage.txt");
@@ -181,6 +190,7 @@ public class TimeTracker : IDisposable
                 _totalUsage = TimeSpan.Zero;
                 _bonusTime = TimeSpan.Zero;
                 _appUsage.Clear();
+                _appBonusGrantedToday.Clear();
                 _lastCheckedDate = today;
             }
             SaveAllData();
@@ -263,21 +273,44 @@ public class TimeTracker : IDisposable
         string yesterdayStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
         string? firstLine = lines[0];
 
-        if (!firstLine.StartsWith(todayStr) && !firstLine.StartsWith(yesterdayStr))
+        bool inBonusSection = false;
+        for (int i = 0; i < lines.Length; i++)
         {
-            return;
-        }
+            string line = lines[i];
 
-        for (int i = 1; i < lines.Length; i++)
-        {
-            string[] parts = lines[i].Split('|');
-            if (parts.Length == 2)
+            if (i == 0)
             {
-                string appName = parts[0];
-                if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double minutes))
+                if (!firstLine.StartsWith(todayStr) && !firstLine.StartsWith(yesterdayStr))
                 {
-                    _appUsage[appName] = TimeSpan.FromMinutes(minutes);
+                    return;
                 }
+                continue;
+            }
+
+            if (line.StartsWith("[BonusGranted]"))
+            {
+                inBonusSection = true;
+                continue;
+            }
+
+            string[] parts = line.Split('|');
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            if (!double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double minutes))
+            {
+                continue;
+            }
+
+            if (inBonusSection)
+            {
+                _appBonusGrantedToday[parts[0]] = TimeSpan.FromMinutes(minutes);
+            }
+            else
+            {
+                _appUsage[parts[0]] = TimeSpan.FromMinutes(minutes);
             }
         }
     }
@@ -393,15 +426,28 @@ public class TimeTracker : IDisposable
         _needsSave = true;
     }
 
-    public void AddAppBonusTime(string appIdentifier, TimeSpan bonus)
+    public bool AddAppBonusTime(string appIdentifier, TimeSpan bonus)
     {
         if (bonus <= TimeSpan.Zero || string.IsNullOrEmpty(appIdentifier))
         {
-            return;
+            return false;
         }
 
         lock (_lockObject)
         {
+            TimeSpan alreadyGranted = _appBonusGrantedToday.TryGetValue(appIdentifier, out TimeSpan granted)
+                ? granted
+                : TimeSpan.Zero;
+            TimeSpan totalAfterGrant = alreadyGranted + bonus;
+
+            if (totalAfterGrant > TimeSpan.FromMinutes(MaxAppBonusPerDayMinutes))
+            {
+                // Daily bonus cap reached. Refuse the grant to keep the per-app limit enforceable.
+                return false;
+            }
+
+            _appBonusGrantedToday[appIdentifier] = totalAfterGrant;
+
             if (!_appUsage.ContainsKey(appIdentifier))
             {
                 _appUsage[appIdentifier] = TimeSpan.Zero;
@@ -412,6 +458,7 @@ public class TimeTracker : IDisposable
             _appUsage[appIdentifier] = newUsage > TimeSpan.Zero ? newUsage : TimeSpan.Zero;
         }
         _needsSave = true;
+        return true;
     }
 
     public void UseBonusTime(TimeSpan duration)
@@ -498,6 +545,14 @@ public class TimeTracker : IDisposable
             foreach (var kvp in _appUsage)
             {
                 sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}|{1}", kvp.Key, kvp.Value.TotalMinutes));
+            }
+            if (_appBonusGrantedToday.Count > 0)
+            {
+                sb.AppendLine("[BonusGranted]");
+                foreach (var kvp in _appBonusGrantedToday)
+                {
+                    sb.AppendLine(string.Format(CultureInfo.InvariantCulture, "{0}|{1}", kvp.Key, kvp.Value.TotalMinutes));
+                }
             }
             content = sb.ToString();
         }

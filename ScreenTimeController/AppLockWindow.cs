@@ -647,17 +647,31 @@ public class AppLockWindow : Form
             using PasswordInputDialog passwordDialog = new PasswordInputDialog(_settingsManager);
             if (passwordDialog.ShowDialog() == DialogResult.OK && passwordDialog.IsPasswordCorrect)
             {
-                _timeTracker.AddAppBonusTime(_appIdentifier, TimeSpan.FromMinutes(bonusMinutes));
-                CanDismiss = true;
-                Close();
+                if (TryGrantBonus(bonusMinutes)) return;
             }
         }
         else
         {
-            _timeTracker.AddAppBonusTime(_appIdentifier, TimeSpan.FromMinutes(bonusMinutes));
-            CanDismiss = true;
-            Close();
+            if (TryGrantBonus(bonusMinutes)) return;
         }
+    }
+
+    private bool TryGrantBonus(int bonusMinutes)
+    {
+        bool granted = _timeTracker.AddAppBonusTime(_appIdentifier, TimeSpan.FromMinutes(bonusMinutes));
+        if (!granted)
+        {
+            MessageBox.Show(
+                LanguageManager.GetString("BonusTimeLimitReached"),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return false;
+        }
+
+        CanDismiss = true;
+        Close();
+        return true;
     }
 
     private void OnCloseClick(object? sender, EventArgs e)

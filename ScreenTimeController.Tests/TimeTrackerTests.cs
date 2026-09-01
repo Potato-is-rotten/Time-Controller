@@ -139,5 +139,65 @@ namespace ScreenTimeController.Tests
 
             Assert.That(remaining, Is.GreaterThanOrEqualTo(TimeSpan.Zero));
         }
+
+        [Test]
+        public void AddAppBonusTime_UnderCap_DecreasesUsage()
+        {
+            string appName = "TestApp_" + Guid.NewGuid().ToString();
+            _timeTracker.RecordUsage(TimeSpan.FromMinutes(60), appName);
+            TimeSpan before = _timeTracker.GetAppUsageToday(appName);
+
+            bool granted = _timeTracker.AddAppBonusTime(appName, TimeSpan.FromMinutes(10));
+
+            Assert.That(granted, Is.True);
+            TimeSpan after = _timeTracker.GetAppUsageToday(appName);
+            Assert.That(after, Is.LessThan(before));
+        }
+
+        [Test]
+        public void AddAppBonusTime_ExceedsCap_RefusesGrant()
+        {
+            string appName = "TestApp_" + Guid.NewGuid().ToString();
+            _timeTracker.RecordUsage(TimeSpan.FromMinutes(60), appName);
+            _timeTracker.AddAppBonusTime(appName, TimeSpan.FromMinutes(60));
+            TimeSpan beforeSecond = _timeTracker.GetAppUsageToday(appName);
+
+            bool secondGranted = _timeTracker.AddAppBonusTime(appName, TimeSpan.FromMinutes(5));
+
+            Assert.That(secondGranted, Is.False);
+            TimeSpan afterSecond = _timeTracker.GetAppUsageToday(appName);
+            Assert.That(afterSecond, Is.EqualTo(beforeSecond));
+        }
+
+        [Test]
+        public void AddAppBonusTime_PerAppCap_IndependentAcrossApps()
+        {
+            string appA = "TestAppA_" + Guid.NewGuid().ToString();
+            string appB = "TestAppB_" + Guid.NewGuid().ToString();
+            _timeTracker.RecordUsage(TimeSpan.FromMinutes(60), appA);
+            _timeTracker.RecordUsage(TimeSpan.FromMinutes(60), appB);
+            _timeTracker.AddAppBonusTime(appA, TimeSpan.FromMinutes(60));
+
+            bool grantedForB = _timeTracker.AddAppBonusTime(appB, TimeSpan.FromMinutes(10));
+
+            Assert.That(grantedForB, Is.True);
+        }
+
+        [Test]
+        public void AddAppBonusTime_EmptyOrNullIdentifier_DoesNotGrant()
+        {
+            Assert.That(_timeTracker.AddAppBonusTime("", TimeSpan.FromMinutes(5)), Is.False);
+            Assert.That(_timeTracker.AddAppBonusTime(null!, TimeSpan.FromMinutes(5)), Is.False);
+        }
+
+        [Test]
+        public void AddAppBonusTime_NonPositiveBonus_DoesNotGrant()
+        {
+            string appName = "TestApp_" + Guid.NewGuid().ToString();
+            _timeTracker.RecordUsage(TimeSpan.FromMinutes(60), appName);
+
+            Assert.That(_timeTracker.AddAppBonusTime(appName, TimeSpan.Zero), Is.False);
+            Assert.That(_timeTracker.AddAppBonusTime(appName, TimeSpan.FromMinutes(-1)), Is.False);
+        }
     }
 }
