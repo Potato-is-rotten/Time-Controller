@@ -241,18 +241,6 @@ public class TimeTracker : IDisposable
                 _bonusTime = TimeSpan.FromMinutes(bonusMinutes);
             }
         }
-        else if (fileDate.Date == DateTime.Today.AddDays(-1))
-        {
-            if (double.TryParse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double yesterdayMinutes))
-            {
-                _totalUsage = TimeSpan.FromMinutes(yesterdayMinutes);
-            }
-
-            if (parts.Length >= 3 && double.TryParse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture, out double bonusMinutes))
-            {
-                _bonusTime = TimeSpan.FromMinutes(bonusMinutes);
-            }
-        }
     }
 
     private void LoadAppUsageData()
@@ -270,7 +258,6 @@ public class TimeTracker : IDisposable
         }
 
         string todayStr = DateTime.Today.ToString("yyyy-MM-dd");
-        string yesterdayStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
         string? firstLine = lines[0];
 
         bool inBonusSection = false;
@@ -280,7 +267,7 @@ public class TimeTracker : IDisposable
 
             if (i == 0)
             {
-                if (!firstLine.StartsWith(todayStr) && !firstLine.StartsWith(yesterdayStr))
+                if (!firstLine.StartsWith(todayStr))
                 {
                     return;
                 }

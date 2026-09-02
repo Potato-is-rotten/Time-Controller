@@ -199,5 +199,45 @@ namespace ScreenTimeController.Tests
             Assert.That(_timeTracker.AddAppBonusTime(appName, TimeSpan.Zero), Is.False);
             Assert.That(_timeTracker.AddAppBonusTime(appName, TimeSpan.FromMinutes(-1)), Is.False);
         }
+
+        [Test]
+        public void LoadUsageData_YesterdayFile_DoesNotLoadAsToday()
+        {
+            string dataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "ScreenTimeController");
+            if (!Directory.Exists(dataDir))
+            {
+                Directory.CreateDirectory(dataDir);
+            }
+            string usageFilePath = Path.Combine(dataDir, "usage.txt");
+            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+            string originalContent = File.Exists(usageFilePath) ? File.ReadAllText(usageFilePath) : string.Empty;
+            bool fileExisted = File.Exists(usageFilePath);
+
+            try
+            {
+                File.WriteAllText(usageFilePath, $"{yesterday}|180|30");
+
+                using var settingsManager = new SettingsManager();
+                using var tracker = new TimeTracker(settingsManager);
+
+                Assert.That(tracker.TotalUsage, Is.EqualTo(TimeSpan.Zero),
+                    "Yesterday's total usage must not be loaded as today's usage");
+                Assert.That(tracker.BonusTime, Is.EqualTo(TimeSpan.Zero),
+                    "Yesterday's bonus time must not be loaded as today's bonus time");
+            }
+            finally
+            {
+                if (fileExisted)
+                {
+                    File.WriteAllText(usageFilePath, originalContent);
+                }
+                else if (File.Exists(usageFilePath))
+                {
+                    File.Delete(usageFilePath);
+                }
+            }
+        }
     }
 }
