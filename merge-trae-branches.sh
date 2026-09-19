@@ -1,131 +1,151 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
 echo "=== TRAE Agent 遗留分支合并工具 ==="
 echo ""
 
 # 1. 获取远程分支
 echo "[1/3] 正在获取远程分支..."
-git fetch origin
+git fetch origin --prune
 
-# 2. 查找 TRAE agent 遗留分支 (trae/agent-六位随机识别码)
-echo "[2/3] 正在扫描遗留分支..."
-agent_branches=$(git branch -r | grep -E 'origin/trae/agent-[a-f0-9]{6}$' | sed 's/^[[:space:]]*//' || true)
+# 2. 发现 TRAE agent 遗留分支
+echo "[2/3] 扫描 TRAE agent 遗留分支..."
+mapfile -t leftover_branches < <(git branch -r | grep -E 'origin/trae/agent-[A-Za-z0-9]{6}$' || true)
 
-if [ -z "$agent_branches" ]; then
-    echo ""
+if [ ${#leftover_branches[@]} -eq 0 ]; then
     echo "过去的提交中未发现遗留分支。"
-    echo ""
     exit 0
 fi
 
-echo "发现以下遗留分支："
-echo "$agent_branches"
+echo "发现 ${#leftover_branches[@]} 个遗留分支:"
+for b in "${leftover_branches[@]}"; do
+    echo "  - ${b}"
+done
 echo ""
 
-# 3. 处理每个遗留分支
+# 3. 逐个处理遗留分支
 echo "[3/3] 正在分析并合并遗留分支..."
 
-for agent_branch in $agent_branches; do
-    branch_name=${agent_branch#origin/}
-    echo "处理遗留分支: $branch_name"
+merged_count=0
+failed_count=0
 
-    # 获取该分支的最新提交和所有提交
-    agent_head=$(git rev-parse "$agent_branch")
+for remote_branch in "${leftover_branches[@]}"; do
+    branch_name=${remote_branch#origin/}
+    echo "----------------------------------------"
+    echo "处理遗留分支: ${branch_name}"
 
-    # 获取所有非 trae/agent-* 的远程分支作为候选基础分支
-    candidate_branches=$(git branch -r | grep -vE 'trae/agent-[a-f0-9]{6}$' | grep 'origin/' | sed 's/^[[:space:]]*//' || true)
+    # 获取该分支的最新提交和提交历史
+    latest_commit=$(git rev-parse "${remote_branch}")
 
-    if [ -z "$candidate_branches" ]; then
-        echo "  警告: 未找到候选基础分支，跳过 $branch_name"
+    # 尝试找到分支点（该分支最老的提交）
+    # 方法: 获取该分支独有的提交，找到最老的一个
+    # 然后用其第一个父提交作为原始分支上的点
+
+    # 获取分支上的所有提交（从旧到新）
+    mapfile -t branch_commits < <(git log --reverse --pretty=format:"%H" "${remote_branch}")
+
+    if [ ${#branch_commits[@]} -eq 0 ]; then
+        echo "  跳过: 无法获取分支提交历史"
+        ((failed_count++)) || true
         continue
     fi
 
-    # 找到最佳基础分支：
-    # 1. 首先尝试找到该分支第一个提交的父提交所在的分支
-    # 2. 或者找到与该分支有最近共同祖先的分支
+    # 最老的提交
+    oldest_commit="${branch_commits[0]}"
 
-    best_base=""
-    best_base_distance=999999
+    # 找到该提交的父提交（即原始分支上的分支点）
+    # 如果是第一次提交可能没有父提交，这种情况跳过
+    parent_commit=$(git rev-parse "${oldest_commit}^" 2>/dev/null || true)
 
-    # 获取该分支的独立提交（不在其它分支上的提交）
-    # 更简单的方法：找 merge-base 后，看哪个候选分支的 merge-base 最接近 agent_head
-    for candidate in $candidate_branches; do
-        candidate_name=${candidate#origin/}
+    if [ -z "${parent_commit}" ]; then
+        echo "  跳过: 无法确定分支起点（可能是孤儿分支）"
+        ((failed_count++)) || true
+        continue
+    fi
 
-        # 计算 merge-base
-        merge_base=$(git merge-base "$agent_branch" "$candidate" 2>/dev/null || true)
+    # 查找包含该父提交的远程分支（排除 trae/agent 分支本身）
+    mapfile -t candidate_branches < <(git branch -r --contains "${parent_commit}" | grep -vE 'trae/agent-[A-Za-z0-9]{6}$' | sed 's/^[[:space:]]*//' || true)
 
-        if [ -n "$merge_base" ]; then
-            # 计算 merge-base 到 agent_head 的距离（提交数）
-            distance=$(git rev-list --count "$merge_base..$agent_head" 2>/dev/null || echo "999999")
+    target_branch=""
 
-            # 如果这个候选分支包含了 agent 分支的所有提交，那 agent 可能是从它切出的
-            # 我们要找的是距离最小且候选分支不包含 agent_head 的分支（即 agent 是从它分出来的）
-
-            is_merged=$(git branch -r --contains "$agent_head" | grep -q "^\s*${candidate}\s*$" && echo "yes" || echo "no")
-
-            if [ "$is_merged" = "no" ] && [ "$distance" -lt "$best_base_distance" ]; then
-                best_base="$candidate_name"
-                best_base_distance=$distance
+    if [ ${#candidate_branches[@]} -gt 0 ]; then
+        # 优先选择非主分支（如 feat/xxx, fix/xxx），其次选择 develop/main/master
+        for cb in "${candidate_branches[@]}"; do
+            cb_name=${cb#origin/}
+            if [[ "${cb_name}" == develop ]] || [[ "${cb_name}" == main ]] || [[ "${cb_name}" == master ]]; then
+                if [ -z "${target_branch}" ]; then
+                    target_branch="${cb_name}"
+                fi
+            else
+                target_branch="${cb_name}"
+                break
             fi
-        fi
-    done
+        done
+    fi
 
-    # 备选方案：如果上述方法没找到，尝试用第一个提交的父提交来确定
-    if [ -z "$best_base" ]; then
-        # 获取该分支独有的最老提交
-        oldest_commit=$(git rev-list --first-parent "$agent_branch" | tail -1)
-        # 获取其父提交
-        parent_commit=$(git rev-parse "${oldest_commit}^" 2>/dev/null || true)
-
-        if [ -n "$parent_commit" ]; then
-            for candidate in $candidate_branches; do
-                candidate_name=${candidate#origin/}
-                if git branch -r --contains "$parent_commit" | grep -q "^\s*${candidate}\s*$"; then
-                    best_base="$candidate_name"
+    if [ -z "${target_branch}" ]; then
+        # 回退: 使用当前检出分支或 develop/main/master
+        current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        if [ -n "${current_branch}" ] && [ "${current_branch}" != "HEAD" ]; then
+            target_branch="${current_branch}"
+        else
+            for fallback in develop main master; do
+                if git show-ref --verify --quiet "refs/remotes/origin/${fallback}"; then
+                    target_branch="${fallback}"
                     break
                 fi
             done
         fi
     fi
 
-    if [ -z "$best_base" ]; then
-        echo "  警告: 无法确定 $branch_name 的基础分支，跳过"
+    if [ -z "${target_branch}" ]; then
+        echo "  错误: 无法确定目标分支"
+        ((failed_count++)) || true
         continue
     fi
 
-    echo "  检测到基础分支: $best_base"
+    echo "  目标分支: ${target_branch}"
+    echo "  分支点: $(git log -1 --oneline "${parent_commit}")"
 
-    # 切换到本地的基础分支（如果存在则更新，否则创建跟踪分支）
-    local_branch_exists=$(git branch --list "$best_base" | wc -l)
-    if [ "$local_branch_exists" -eq 0 ]; then
-        echo "  创建本地跟踪分支: $best_base"
-        git checkout -b "$best_base" "origin/$best_base"
-    else
-        echo "  切换到本地分支: $best_base"
-        git checkout "$best_base"
-        git pull origin "$best_base" 2>/dev/null || true
+    # 检查是否已经合并过
+    if git branch -r --merged "origin/${target_branch}" | grep -q "${remote_branch}"; then
+        echo "  状态: 已合并到 ${target_branch}，跳过"
+        continue
     fi
 
-    # 合并遗留分支
-    echo "  正在合并 $branch_name 到 $best_base..."
-    if git merge --no-edit "$agent_branch"; then
-        echo "  合并成功: $branch_name -> $best_base"
+    # 执行合并
+    echo "  正在合并 ${branch_name} -> ${target_branch} ..."
 
-        # 推送合并后的分支
-        echo "  正在推送 $best_base 到 origin..."
-        if git push origin "$best_base"; then
-            echo "  推送成功"
-        else
-            echo "  错误: 推送失败，请手动处理"
-        fi
+    # 创建临时本地分支用于合并
+    temp_branch="_temp_merge_${branch_name//\//_}"
+    git branch -D "${temp_branch}" 2>/dev/null || true
+
+    git checkout -b "${temp_branch}" "origin/${target_branch}" >/dev/null 2>&1
+
+    if git merge --no-edit "${remote_branch}" >/dev/null 2>&1; then
+        echo "  结果: ${GREEN}合并成功${NC}"
+        # 推送到远程
+        git push origin "${temp_branch}:${target_branch}" >/dev/null 2>&1
+        echo "  已推送至 origin/${target_branch}"
+        ((merged_count++)) || true
     else
-        echo "  错误: 合并 $branch_name 到 $best_base 时发生冲突，请手动解决"
+        echo "  结果: ${RED}合并冲突，需要手动解决${NC}"
         git merge --abort 2>/dev/null || true
+        ((failed_count++)) || true
     fi
 
+    # 清理临时分支
+    git checkout - 2>/dev/null || git checkout "${target_branch}" 2>/dev/null || true
+    git branch -D "${temp_branch}" 2>/dev/null || true
 done
 
 echo ""
 echo "=== 处理完成 ==="
+echo "成功合并: ${merged_count}"
+echo "失败/跳过: ${failed_count}"
