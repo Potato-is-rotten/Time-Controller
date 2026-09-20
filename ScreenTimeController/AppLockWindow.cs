@@ -644,7 +644,17 @@ public class AppLockWindow : Form
 
         if (_settingsManager.HasPassword())
         {
-            using PasswordInputDialog passwordDialog = new PasswordInputDialog(_settingsManager);
+            var loginAttemptManager = new LoginAttemptManager();
+            if (loginAttemptManager.IsLocked)
+            {
+                MessageBox.Show(
+                    LanguageManager.GetString("AccountLocked"),
+                    LanguageManager.GetString("Error"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Hand);
+                return;
+            }
+            using PasswordInputDialog passwordDialog = new PasswordInputDialog(_settingsManager, loginAttemptManager);
             if (passwordDialog.ShowDialog() == DialogResult.OK && passwordDialog.IsPasswordCorrect)
             {
                 if (TryGrantBonus(bonusMinutes)) return;
@@ -716,6 +726,7 @@ public class AppLockWindow : Form
 public class PasswordInputDialog : Form
 {
     private readonly SettingsManager _settingsManager;
+    private readonly LoginAttemptManager _loginAttemptManager;
     private TextBox? _textBoxPassword;
     private Button? _buttonOK;
     private Button? _buttonCancel;
@@ -724,11 +735,22 @@ public class PasswordInputDialog : Form
 
     public bool IsPasswordCorrect { get; private set; } = false;
 
-    public PasswordInputDialog(SettingsManager settingsManager)
+    public PasswordInputDialog(SettingsManager settingsManager, LoginAttemptManager loginAttemptManager)
     {
         _settingsManager = settingsManager;
+        _loginAttemptManager = loginAttemptManager;
         InitializeComponent();
         ApplyLanguage();
+        CheckLockStatus();
+    }
+
+    private void CheckLockStatus()
+    {
+        if (_loginAttemptManager.IsLocked)
+        {
+            _textBoxPassword!.Enabled = false;
+            _buttonOK!.Enabled = false;
+        }
     }
 
     private void InitializeComponent()
@@ -824,14 +846,31 @@ public class PasswordInputDialog : Form
 
     private void OnOKClick(object? sender, EventArgs e)
     {
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(LanguageManager.GetString("AccountLocked"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
+            return;
+        }
+
         if (_settingsManager.VerifyPassword(_textBoxPassword!.Text))
         {
             IsPasswordCorrect = true;
+            _loginAttemptManager.ResetAttempts();
             DialogResult = DialogResult.OK;
             Close();
         }
         else
         {
+            _loginAttemptManager.RecordFailedAttempt();
+
+            if (_loginAttemptManager.IsLocked)
+            {
+                MessageBox.Show(LanguageManager.GetString("AccountLockedUntilTomorrow"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                DialogResult = DialogResult.Cancel;
+                Close();
+                return;
+            }
+
             _attemptsLeft--;
             if (_attemptsLeft > 0)
             {
