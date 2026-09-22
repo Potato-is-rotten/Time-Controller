@@ -10,6 +10,7 @@ public class UnlockForm : Form
 {
     private readonly SettingsManager _settingsManager;
     private readonly TimeTracker _timeTracker;
+    private readonly LoginAttemptManager _loginAttemptManager;
     private Panel? _centerPanel;
     private Panel? _passwordPanel;
     private Panel? _bonusPanel;
@@ -41,11 +42,13 @@ public class UnlockForm : Form
         _showingBonusOptions = false;
         _settingsManager = settingsManager;
         _timeTracker = timeTracker;
+        _loginAttemptManager = new LoginAttemptManager();
         _attemptsLeft = 3;
         IsPasswordCorrect = false;
         BonusTimeAdded = TimeSpan.Zero;
         InitializeComponent();
         ApplyLanguage();
+        UpdateLockStatus();
         FormBorderStyle = FormBorderStyle.None;
         WindowState = FormWindowState.Maximized;
         BackColor = Color.FromArgb(30, 30, 30);
@@ -163,14 +166,37 @@ public class UnlockForm : Form
         {
             return;
         }
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(
+                string.Format(LanguageManager.GetString("LockedUntil"), DateTime.Today.AddDays(1).ToString("HH:mm")),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Hand);
+            _isClosing = true;
+            IsPasswordCorrect = false;
+            DialogResult = DialogResult.Cancel;
+            Close();
+            return;
+        }
         if (_settingsManager.HasPassword())
         {
             if (_settingsManager.VerifyPassword(_textBoxPassword!.Text))
             {
+                _loginAttemptManager.ResetAttempts();
                 ShowBonusTimeOptions();
                 return;
             }
+            _loginAttemptManager.RecordFailedAttempt();
             _attemptsLeft--;
+            if (_loginAttemptManager.IsLocked)
+            {
+                _isClosing = true;
+                IsPasswordCorrect = false;
+                DialogResult = DialogResult.Cancel;
+                Close();
+                return;
+            }
             if (_attemptsLeft > 0)
             {
                 MessageBox.Show(string.Format(LanguageManager.GetString("IncorrectPassword"), _attemptsLeft), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
@@ -190,6 +216,15 @@ public class UnlockForm : Form
         else
         {
             ShowBonusTimeOptions();
+        }
+    }
+
+    private void UpdateLockStatus()
+    {
+        if (_loginAttemptManager.IsLocked)
+        {
+            _textBoxPassword!.Enabled = false;
+            _buttonUnlock!.Enabled = false;
         }
     }
 

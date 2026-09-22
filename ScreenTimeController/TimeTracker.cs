@@ -343,11 +343,17 @@ public class TimeTracker : IDisposable
             {
                 lock (_saveLock)
                 {
+                    string tempFile = filePath + ".tmp";
+                    File.WriteAllText(tempFile, content, Encoding.UTF8);
+
                     if (File.Exists(filePath))
                     {
-                        try { File.Delete(filePath); } catch (Exception ex) { Logger.LogError("Operation failed", ex); }
+                        File.Replace(tempFile, filePath, null);
                     }
-                    File.WriteAllText(filePath, content, Encoding.UTF8);
+                    else
+                    {
+                        File.Move(tempFile, filePath);
+                    }
                 }
                 return;
             }

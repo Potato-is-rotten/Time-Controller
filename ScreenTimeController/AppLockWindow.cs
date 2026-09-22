@@ -716,6 +716,7 @@ public class AppLockWindow : Form
 public class PasswordInputDialog : Form
 {
     private readonly SettingsManager _settingsManager;
+    private readonly LoginAttemptManager _loginAttemptManager;
     private TextBox? _textBoxPassword;
     private Button? _buttonOK;
     private Button? _buttonCancel;
@@ -727,8 +728,20 @@ public class PasswordInputDialog : Form
     public PasswordInputDialog(SettingsManager settingsManager)
     {
         _settingsManager = settingsManager;
+        _loginAttemptManager = new LoginAttemptManager();
         InitializeComponent();
         ApplyLanguage();
+        UpdateLockStatus();
+    }
+
+    private void UpdateLockStatus()
+    {
+        if (_loginAttemptManager.IsLocked)
+        {
+            _textBoxPassword!.Enabled = false;
+            _buttonOK!.Enabled = false;
+            _buttonCancel!.Enabled = true;
+        }
     }
 
     private void InitializeComponent()
@@ -824,30 +837,56 @@ public class PasswordInputDialog : Form
 
     private void OnOKClick(object? sender, EventArgs e)
     {
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(
+                string.Format(LanguageManager.GetString("LockedUntil"), DateTime.Today.AddDays(1).ToString("HH:mm")),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Hand);
+            DialogResult = DialogResult.Cancel;
+            Close();
+            return;
+        }
+
         if (_settingsManager.VerifyPassword(_textBoxPassword!.Text))
         {
+            _loginAttemptManager.ResetAttempts();
             IsPasswordCorrect = true;
             DialogResult = DialogResult.OK;
             Close();
+            return;
+        }
+
+        _loginAttemptManager.RecordFailedAttempt();
+
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(
+                LanguageManager.GetString("AccountLockedUntilTomorrow"),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Exclamation);
+            DialogResult = DialogResult.Cancel;
+            Close();
+            return;
+        }
+
+        _attemptsLeft--;
+        if (_attemptsLeft > 0)
+        {
+            MessageBox.Show(
+                string.Format(LanguageManager.GetString("IncorrectPassword"), _attemptsLeft),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            _textBoxPassword.Clear();
+            _textBoxPassword.Focus();
         }
         else
         {
-            _attemptsLeft--;
-            if (_attemptsLeft > 0)
-            {
-                MessageBox.Show(
-                    string.Format(LanguageManager.GetString("IncorrectPassword"), _attemptsLeft),
-                    LanguageManager.GetString("Error"),
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                _textBoxPassword.Clear();
-                _textBoxPassword.Focus();
-            }
-            else
-            {
-                DialogResult = DialogResult.Cancel;
-                Close();
-            }
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
     }
 }
