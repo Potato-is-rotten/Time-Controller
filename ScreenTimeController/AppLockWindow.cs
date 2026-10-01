@@ -738,6 +738,7 @@ public class PasswordInputDialog : Form
     public PasswordInputDialog(SettingsManager settingsManager, LoginAttemptManager loginAttemptManager)
     {
         _settingsManager = settingsManager;
+<<<<<<< HEAD
         _loginAttemptManager = loginAttemptManager;
         InitializeComponent();
         ApplyLanguage();
@@ -745,11 +746,24 @@ public class PasswordInputDialog : Form
     }
 
     private void CheckLockStatus()
+=======
+        _loginAttemptManager = new LoginAttemptManager();
+        InitializeComponent();
+        ApplyLanguage();
+        UpdateLockStatus();
+    }
+
+    private void UpdateLockStatus()
+>>>>>>> origin/trae/agent-HmmpUy
     {
         if (_loginAttemptManager.IsLocked)
         {
             _textBoxPassword!.Enabled = false;
             _buttonOK!.Enabled = false;
+<<<<<<< HEAD
+=======
+            _buttonCancel!.Enabled = true;
+>>>>>>> origin/trae/agent-HmmpUy
         }
     }
 
@@ -848,19 +862,58 @@ public class PasswordInputDialog : Form
     {
         if (_loginAttemptManager.IsLocked)
         {
+<<<<<<< HEAD
             MessageBox.Show(LanguageManager.GetString("AccountLocked"), LanguageManager.GetString("Error"), MessageBoxButtons.OK, MessageBoxIcon.Hand);
+=======
+            MessageBox.Show(
+                string.Format(LanguageManager.GetString("LockedUntil"), DateTime.Today.AddDays(1).ToString("HH:mm")),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Hand);
+            DialogResult = DialogResult.Cancel;
+            Close();
+>>>>>>> origin/trae/agent-HmmpUy
             return;
         }
 
         if (_settingsManager.VerifyPassword(_textBoxPassword!.Text))
         {
+            _loginAttemptManager.ResetAttempts();
             IsPasswordCorrect = true;
             _loginAttemptManager.ResetAttempts();
             DialogResult = DialogResult.OK;
             Close();
+            return;
+        }
+
+        _loginAttemptManager.RecordFailedAttempt();
+
+        if (_loginAttemptManager.IsLocked)
+        {
+            MessageBox.Show(
+                LanguageManager.GetString("AccountLockedUntilTomorrow"),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Exclamation);
+            DialogResult = DialogResult.Cancel;
+            Close();
+            return;
+        }
+
+        _attemptsLeft--;
+        if (_attemptsLeft > 0)
+        {
+            MessageBox.Show(
+                string.Format(LanguageManager.GetString("IncorrectPassword"), _attemptsLeft),
+                LanguageManager.GetString("Error"),
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            _textBoxPassword.Clear();
+            _textBoxPassword.Focus();
         }
         else
         {
+<<<<<<< HEAD
             _loginAttemptManager.RecordFailedAttempt();
 
             if (_loginAttemptManager.IsLocked)
@@ -887,6 +940,10 @@ public class PasswordInputDialog : Form
                 DialogResult = DialogResult.Cancel;
                 Close();
             }
+=======
+            DialogResult = DialogResult.Cancel;
+            Close();
+>>>>>>> origin/trae/agent-HmmpUy
         }
     }
 }

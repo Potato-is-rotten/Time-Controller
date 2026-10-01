@@ -239,5 +239,46 @@ namespace ScreenTimeController.Tests
                 }
             }
         }
+
+        [Test]
+        public void MarkCleanExit_OverwritesExistingFile_AtomicAndLeavesNoTmpFiles()
+        {
+            string dataDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "ScreenTimeController");
+            if (!Directory.Exists(dataDir))
+            {
+                Directory.CreateDirectory(dataDir);
+            }
+            string cleanExitPath = Path.Combine(dataDir, "clean_exit.txt");
+            bool fileExisted = File.Exists(cleanExitPath);
+            string originalContent = fileExisted ? File.ReadAllText(cleanExitPath) : string.Empty;
+
+            try
+            {
+                File.WriteAllText(cleanExitPath, "stale-content-from-previous-run");
+
+                _timeTracker.MarkCleanExit();
+
+                Assert.That(File.Exists(cleanExitPath), Is.True,
+                    "clean_exit.txt must remain on disk after MarkCleanExit");
+                Assert.That(File.Exists(cleanExitPath + ".tmp"), Is.False,
+                    "No stale .tmp file should be left behind after a successful write");
+                string content = File.ReadAllText(cleanExitPath).Trim();
+                Assert.That(content, Is.EqualTo(DateTime.Today.ToString("yyyy-MM-dd")),
+                    "clean_exit.txt must contain today's date after MarkCleanExit");
+            }
+            finally
+            {
+                if (fileExisted)
+                {
+                    File.WriteAllText(cleanExitPath, originalContent);
+                }
+                else if (File.Exists(cleanExitPath))
+                {
+                    File.Delete(cleanExitPath);
+                }
+            }
+        }
     }
 }

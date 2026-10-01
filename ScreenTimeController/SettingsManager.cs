@@ -240,14 +240,16 @@ public class SettingsManager
             {
                 string tempFile = filePath + ".tmp";
                 File.WriteAllText(tempFile, content, Encoding.UTF8);
-                
+
                 if (File.Exists(filePath))
                 {
-                    File.Delete(filePath);
+                    File.Replace(tempFile, filePath, null);
                 }
-                
-                File.Move(tempFile, filePath);
-                
+                else
+                {
+                    File.Move(tempFile, filePath);
+                }
+
                 string verify = File.ReadAllText(filePath, Encoding.UTF8);
                 if (verify == content)
                 {
